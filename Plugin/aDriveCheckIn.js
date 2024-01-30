@@ -1,8 +1,7 @@
 /*
  * 本脚本旨在实现阿里云盘自动签到，支持Surge,stash,Loon,QuantumultX
- * @author: zqzess
- * 仓库地址：https://github.com/zqzess/rule_for_quantumultX
  * boxjs可以查看refresh_token
+ * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/ALiYunPan.png
  * 获取token，打开阿里网盘即可获取，如果没有token获取通知，请先关闭阿里网盘，等待几秒重新开启阿里网盘。
  * 首次订阅脚本，请停止脚本工具运行再重新启动，使MITM生效
  * 本脚本已实现自动刷新token，只有第一次使用需要获取token，随后可关闭token获取，无需再次启用
