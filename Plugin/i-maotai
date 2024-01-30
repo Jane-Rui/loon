@@ -1,0 +1,8 @@
+#!name=i-茅台签到token获取
+#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/i-maotaiIcon.jpeg
+
+[Script]
+http-request ^https:\/\/app\.moutai519\.com\.cn\/xhr\/front\/mall\/message\/unRead\/query tag=茅台Token, script-path=https://raw.githubusercontent.com/Jane-Rui/Script_s/main/scripts/i-maotai.js,requires-body=0, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/i-maotaiIcon.jpeg
+cron "17 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/Script_s/main/scripts/i-maotai.js,tag = i 茅台,enable=true, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/i-maotaiIcon.jpeg
+[MITM]
+hostname = app.moutai519.com.cn
