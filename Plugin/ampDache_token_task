@@ -3,6 +3,6 @@
 
 [Script]
 cron "1 0 * * *" script-path=script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/amapIcon.png
-http-request ^https:\/\/(m5(|-zb)|dache)\.amap\.com\/(ws\/yuece\/(act|openapi\/activity\/current)\/query|common\/(alipaymini|wxmini)\?_ENCRYPT=) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=10, tag=高德地图打车token
+http-request ^https:\/\/(m5(|-zb)|dache)\.amap\.com\/(ws\/yuece\/(act|openapi\/activity\/current)\/query|common\/(alipaymini|wxmini)\?_ENCRYPT=) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=10, tag=高德地图打车token, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/amapIcon.png
 [mitm]
 hostname = *.amap.com
