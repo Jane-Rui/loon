@@ -2,7 +2,7 @@
 #!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/ALiYunPan.png
 
 [Script]
+cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, timeout=300, tag=阿里网盘签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/ALiYunPan.png
 http-request ^https:\/\/(auth|aliyundrive)\.alipan\.com\/v2\/account\/token script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, requires-body=true, timeout=10, enabled=true, tag=阿里网盘token获取, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/ALiYunPan.png
-
 [MITM]
 hostname = auth.alipan.com, auth.aliyundrive.com
