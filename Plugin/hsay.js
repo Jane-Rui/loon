@@ -21,8 +21,8 @@ Loon:
 3.关闭获取ck脚本，避免产生不必要的mitm。
 
 [Script]
-cron "30 9 * * *" script-path=https://gist.githubusercontent.com/Sliverkiss/e427dc3164d0c008f8d282f180d7fc00/raw/hsay.js, timeout=300, tag=沪上阿姨
-http-request ^https:\/\/(webapi|qmwebapi)\.qmai\.cn\/web\/(catering|catering2-apiserver)\/crm\/points-info script-path=https://gist.githubusercontent.com/Sliverkiss/e427dc3164d0c008f8d282f180d7fc00/raw/hsay.js, timeout=10, tag=沪上阿姨获取token
+cron "30 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=300, tag=沪上阿姨
+http-request ^https:\/\/(webapi|qmwebapi)\.qmai\.cn\/web\/(catering|catering2-apiserver)\/crm\/points-info script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=10, tag=沪上阿姨获取token
 [MITM]
 hostname =qmwebapi.qmai.cn,webapi.qmai.cn
 
