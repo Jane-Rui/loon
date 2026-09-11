@@ -4,6 +4,8 @@
  * @version 1.0.0
  * @date 2026-09-11
  * @license MIT
+ * @icon https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
+ * icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
  * 
  * ==============================================================================
  * 【功能说明】
@@ -47,7 +49,7 @@ const KEY_LAST_CAPTURE = 'cmcc_sign_last_capture_time';
 // 通用跨平台通知
 function notify(title, subtitle, message) {
   if (typeof $notification !== 'undefined') {
-    $notification.post(title, subtitle, message);
+    $notification.post(title, subtitle, message, { 'media-url': 'https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png' });
   } else {
     console.log(`[${title}] ${subtitle} - ${message}`);
   }

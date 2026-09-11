@@ -6,13 +6,13 @@
 #!date=2026-09-11
 
 # 📱 通信与运营商
-cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png, enabled=true
+cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 
 # ☁️ 网盘与存储
-cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, timeout=300, tag=阿里网盘签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Alibaba.png, enabled=true
+cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, timeout=300, tag=阿里网盘签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Alibaba.png
 
 # 🚗 出行与地图
-cron "1 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Area.png, enabled=true
+cron "1 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Area.png
 
 # 🏠 智慧生活与家居
-cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png, enabled=false
+cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png, enable=false
