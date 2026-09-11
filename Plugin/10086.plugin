@@ -1,23 +1,23 @@
 #!name=中国移动自动签到
 #!desc=自动劫持中国移动 APP 登录态与会话凭证，支持原生 Token 自动换票自愈，定时自动签到并领取阶梯流量包与大奖。
 #!author=Jane-Rui
-#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 #!tag=签到,中国移动
 #!system=iOS
 #!date=2026-09-11
 
 [Script]
 # 定时签到任务 (每天 08:30 自动执行)
-cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 
 # 凭据捕获 1: 客户端原生接口凭证
-http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=false, timeout=10, enabled=true, tag=中国移动原生凭证捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=false, timeout=10, enabled=true, tag=中国移动原生凭证捕获, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 
 # 凭据捕获 2: 活动中心 SSO 授权接口 (含地域省市参数)
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=10, enabled=true, tag=中国移动SSO凭证捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=10, enabled=true, tag=中国移动SSO凭证捕获, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 
 # 凭据捕获 3: 签到活动页专属会话 Token
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=false, timeout=10, enabled=true, tag=中国移动签到Token捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=false, timeout=10, enabled=true, tag=中国移动签到Token捕获, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
 
 [MITM]
 hostname = client.app.coc.10086.cn, apm.app.coc.10086.cn, wx.10086.cn
