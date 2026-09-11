@@ -13,3 +13,4 @@ All notable changes to this project will be documented in this file.
 - **Tasks Scripts**: 新增 `tasks.scripts` 集中订阅合集，支持在 Loon 的 `[Remote Script]` 中一键托管运行。
 - **Icon**: 新增中国移动高清图标 `Icon/10086.png`。
 - **Documentation**: 新增 `README.md`，提供完整的插件目录说明与安全合规红线声明。
+- **PingMe**: 整合 PingMe 虚拟号码与短信平台自动签到及视频激励脚本 (`Plugin/pingme.js`) 与插件配置 (`Plugin/pingme_token_task`、`Plugin/pingme.plugin`)，支持多引擎 OCR 验证码自愈，统一 Qure `PostBox.png` 语义图标。

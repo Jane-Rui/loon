@@ -1,0 +1,14 @@
+#!name=PingMe自动签到
+#!desc=PingMe 虚拟号码与短信平台自动签到及视频激励奖励，支持内置 OCR 自动识别验证码。
+#!author=怎么肥事 (Jane-Rui 整理)
+#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
+#!tag=签到,PingMe
+#!system=iOS
+#!date=2026-09-11
+
+[Script]
+cron "30 10,20 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=600, tag=PingMe签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
+http-request ^https:\/\/api\.pingmeapp\.net\/app\/queryBalanceAndBonus script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=60, tag=PingMe抓参, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
+
+[MITM]
+hostname = api.pingmeapp.net
