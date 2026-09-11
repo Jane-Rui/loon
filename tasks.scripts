@@ -6,7 +6,7 @@
 #!date=2026-09-11
 
 # 📱 通信与运营商
-cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
+cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
 
 # 💬 虚拟号码与通信
 cron "30 10,20 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=600, tag=PingMe签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png

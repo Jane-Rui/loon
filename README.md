@@ -25,11 +25,11 @@ https://raw.githubusercontent.com/Jane-Rui/loon/main/tasks.scripts, tag=Jane-Rui
 
 | 功能 / 插件名称 | 插件配置路径 | 核心脚本 | MitM 域名要求 | 说明 |
 | :--- | :--- | :--- | :--- | :--- |
-| **中国移动自动签到** | `Plugin/10086_token_task` 或 `Plugin/10086.plugin` | `Plugin/10086.js` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生 Token 自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
-| **阿里云盘自动签到** | `Plugin/aDriveCheckIn_token_task` | `Plugin/aDriveCheckIn.js` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获 token，每日定时签到与领取奖励 |
-| **高德打车自动签到** | `Plugin/ampDache_token_task` | `Plugin/ampDache.js` | `*.amap.com` | 打开高德地图打车自动抓取 token 并定时打卡 |
-| **PingMe 自动签到** | `Plugin/pingme_token_task` 或 `Plugin/pingme.plugin` | `Plugin/pingme.js` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
-| **海信爱家自动签到** | `Plugin/hsay_token_task` | `Plugin/hsay.js` | `*.hisense.com` | 海信爱家打卡与积分获取 |
+| **中国移动自动签到** | `Plugin/10086.plugin` | `Plugin/10086.js` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生凭据自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
+| **阿里云盘自动签到** | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获凭据，每日定时签到与领取奖励 |
+| **高德打车自动签到** | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `*.amap.com` | 打开高德地图打车自动抓取凭据并定时打卡 |
+| **PingMe 自动签到** | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
+| **海信爱家自动签到** | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `*.hisense.com` | 海信爱家打卡与积分获取 |
 
 ---
 

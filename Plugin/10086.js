@@ -4,8 +4,8 @@
  * @version 1.0.0
  * @date 2026-09-11
  * @license MIT
- * @icon https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
- * icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png
+ * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+ * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
  * 
  * ==============================================================================
  * 【功能说明】
@@ -49,7 +49,7 @@ const KEY_LAST_CAPTURE = 'cmcc_sign_last_capture_time';
 // 通用跨平台通知
 function notify(title, subtitle, message) {
   if (typeof $notification !== 'undefined') {
-    $notification.post(title, subtitle, message, { 'media-url': 'https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Cellular.png' });
+    $notification.post(title, subtitle, message, { 'media-url': 'https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png' });
   } else {
     console.log(`[${title}] ${subtitle} - ${message}`);
   }
@@ -166,7 +166,7 @@ function handleCapture() {
     if (cookie !== prevCookie) {
       writeStore(cookie, KEY_SESSION_COOKIE);
       captured = true;
-      captureType = '签到活动专属会话 Token';
+      captureType = '签到活动专属会话凭据';
     }
   }
 
