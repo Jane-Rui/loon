@@ -1,21 +1,21 @@
 #!name=Jane-Rui 定时任务合集
-#!desc=Jane-Rui 个人精选与自研定时签到任务合集（包含中国移动自动签到与换票、阿里网盘、高德打车等）
+#!desc=Jane-Rui 个人精选与自研定时签到任务合集（包含中国移动自动签到与换票、PingMe、阿里网盘、高德打车等）
 #!author=Jane-Rui
 #!homepage=https://github.com/Jane-Rui/loon
-#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Daily.png
+#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Daily.png
 #!date=2026-09-11
 
 # 📱 通信与运营商
-cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 # 💬 虚拟号码与通信
-cron "30 10,20 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=600, tag=PingMe签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
+cron "30 10,20 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=600, tag=PingMe每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
 
 # ☁️ 网盘与存储
-cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, timeout=300, tag=阿里网盘签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Alibaba.png
+cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/aDriveCheckIn.js, timeout=300, tag=阿里网盘签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/ALiYunPan.png
 
 # 🚗 出行与地图
-cron "1 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Area.png
+cron "1 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/amapIcon.png
 
 # 🏠 智慧生活与家居
-cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png, enable=false
+cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png, enable=false

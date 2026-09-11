@@ -14,3 +14,4 @@ All notable changes to this project will be documented in this file.
 - **Icon**: 新增中国移动高清图标 `Icon/10086.png`。
 - **Documentation**: 新增 `README.md`，提供完整的插件目录说明与安全合规红线声明。
 - **PingMe**: 整合 PingMe 虚拟号码与短信平台自动签到及视频激励脚本 (`Plugin/pingme.js`) 与插件配置 (`Plugin/pingme_token_task`、`Plugin/pingme.plugin`)，支持多引擎 OCR 验证码自愈，统一 Qure `PostBox.png` 语义图标。
+- **Icon Assets Management**: 建立结构化 `Icon/` 资产目录体系（`Icon/App/` 应用原生高清 AppIcon 与 `Icon/Task/` 合集语义图标），收录中国移动 512×512 官方回旋标图标与 PingMe 512×512 官方应用图标，实现全量脚本 100% 本地化托管与零外部依赖。

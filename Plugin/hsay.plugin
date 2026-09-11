@@ -1,8 +1,8 @@
 #!name=海信爱家自动签到
-#!icon=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png
+#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png
 
 [Script]
-cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png
-http-request ^https:\/\/api-jck\.hismarttv\.com\/appservice\/home\/account\/signList script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=10, tag=海信爱家登录凭据, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/WiFi.png
+cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png
+http-request ^https:\/\/api-jck\.hismarttv\.com\/appservice\/home\/account\/signList script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=10, tag=海信爱家登录凭据, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png
 [MITM]
 hostname = api-jck.hismarttv.com

@@ -4,8 +4,8 @@
  * @version 1.0.0
  * @date 2026-09-11
  * @license MIT
- * @icon https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
- * icon: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png
+ * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
+ * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
  * 
  * ==============================================================================
  * 【功能说明】
@@ -309,7 +309,7 @@ function buildHeaders(capture) {
 function notifyDone(title, body) {
   if (typeof $notification !== "undefined") {
     $notification.post(scriptName, title, body, {
-      "media-url": "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/PostBox.png",
+      "media-url": "https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png",
     });
   } else if (typeof $notify !== "undefined") {
     $notify(scriptName, title, body);

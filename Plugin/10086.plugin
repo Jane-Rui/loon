@@ -1,16 +1,16 @@
 #!name=中国移动自动签到
 #!desc=自动劫持中国移动 APP 登录态与会话凭据，定时自动签到并领取阶梯流量包与大奖。
 #!author=Jane-Rui
-#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 #!tag=签到,中国移动
 #!system=iOS
 #!date=2026-09-11
 
 [Script]
-cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
-http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=10, tag=中国移动原生凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=10, tag=中国移动SSO凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=10, tag=中国移动签到会话捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/10086.png
+cron "30 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=10, tag=中国移动原生凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=10, tag=中国移动SSO凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=10, tag=中国移动签到会话捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 [MITM]
 hostname = client.app.coc.10086.cn, apm.app.coc.10086.cn, wx.10086.cn

@@ -23,13 +23,22 @@ https://raw.githubusercontent.com/Jane-Rui/loon/main/tasks.scripts, tag=Jane-Rui
 
 ## 🧩 精选插件与脚本列表
 
-| 功能 / 插件名称 | 插件配置路径 | 核心脚本 | MitM 域名要求 | 说明 |
-| :--- | :--- | :--- | :--- | :--- |
-| **中国移动自动签到** | `Plugin/10086.plugin` | `Plugin/10086.js` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生凭据自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
-| **阿里云盘自动签到** | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获凭据，每日定时签到与领取奖励 |
-| **高德打车自动签到** | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `*.amap.com` | 打开高德地图打车自动抓取凭据并定时打卡 |
-| **PingMe 自动签到** | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
-| **海信爱家自动签到** | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `*.hisense.com` | 海信爱家打卡与积分获取 |
+| 功能 / 插件名称 | 插件配置路径 | 核心脚本 | 图标预览 / 路径 | MitM 域名要求 | 说明 |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| **中国移动自动签到** | `Plugin/10086.plugin` | `Plugin/10086.js` | `Icon/App/10086.png` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生凭据自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
+| **PingMe 自动签到** | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `Icon/App/PingMe.png` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
+| **阿里云盘自动签到** | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `Icon/App/ALiYunPan.png` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获凭据，每日定时签到与领取奖励 |
+| **高德打车自动签到** | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `Icon/App/amapIcon.png` | `*.amap.com` | 打开高德地图打车自动抓取凭据并定时打卡 |
+| **海信爱家自动签到** | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `Icon/App/hsayIcon.png` | `*.hisense.com` | 海信爱家打卡与积分获取 |
+
+---
+
+## 🎨 图标资产结构 (`Icon/`)
+
+仓库内设有独立、标准化的图标管理目录，详见 [`Icon/README.md`](Icon/README.md)：
+- **`Icon/App/`**：收录各服务官方 512×512 原生高清应用图标（中国移动、PingMe、阿里云盘、高德地图、海信爱家等）；
+- **`Icon/Task/`**：收录定时打卡、多任务合集等语义图标（`Daily.png`、`Tasks.png`）。
+- **向后兼容**：根目录保留各同名镜像图标文件，保障现有 Loon 配置与旧版引用 100% 顺畅加载。
 
 ---
 
