@@ -15,3 +15,7 @@ All notable changes to this project will be documented in this file.
 - **Documentation**: 新增 `README.md`，提供完整的插件目录说明与安全合规红线声明。
 - **PingMe**: 整合 PingMe 虚拟号码与短信平台自动签到及视频激励脚本 (`Plugin/pingme.js`) 与插件配置 (`Plugin/pingme_token_task`、`Plugin/pingme.plugin`)，支持多引擎 OCR 验证码自愈，统一 Qure `PostBox.png` 语义图标。
 - **Icon Assets Management**: 建立结构化 `Icon/` 资产目录体系（`Icon/App/` 应用原生高清 AppIcon 与 `Icon/Task/` 合集语义图标），收录中国移动 512×512 官方回旋标图标与 PingMe 512×512 官方应用图标，实现全量脚本 100% 本地化托管与零外部依赖。
+- **AkileCloud (akile.ai)**: 新增 AkileCloud 自动登录与每日签到脚本 (`Plugin/akile.js`) 与插件配置 (`Plugin/akile.plugin`)。
+  - 长期 Token 优先复用，杜绝频繁重复登录。
+  - 前置检测东八区 `last_checkin_time` 时间戳，今日已打卡立即熔断拦截，严格防风控。
+  - 提取官方最高清 512×512 AppIcon 本地化托管于 `Icon/App/akile.png`。

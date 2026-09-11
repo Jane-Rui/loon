@@ -27,6 +27,7 @@ https://raw.githubusercontent.com/Jane-Rui/loon/main/tasks.scripts, tag=Jane-Rui
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **中国移动自动签到** | `Plugin/10086.plugin` | `Plugin/10086.js` | `Icon/App/10086.png` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生凭据自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
 | **PingMe 自动签到** | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `Icon/App/PingMe.png` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
+| **AkileCloud 自动签到** | `Plugin/akile.plugin` | `Plugin/akile.js` | `Icon/App/akile.png` | 无需 MitM | 支持账密自动重登续期、长期 Token 优先复用、智能前置防风控审查与每日自动打卡 |
 | **阿里云盘自动签到** | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `Icon/App/ALiYunPan.png` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获凭据，每日定时签到与领取奖励 |
 | **高德打车自动签到** | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `Icon/App/amapIcon.png` | `*.amap.com` | 打开高德地图打车自动抓取凭据并定时打卡 |
 | **海信爱家自动签到** | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `Icon/App/hsayIcon.png` | `*.hisense.com` | 海信爱家打卡与积分获取 |

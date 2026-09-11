@@ -1,0 +1,18 @@
+#!name=AkileCloud自动签到
+#!desc=AkileCloud (akile.ai) 自动登录与每日签到，支持账密自动换票、Token持久化复用与防风控打卡。
+#!author=Jane-Rui
+#!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
+#!tag=签到,VPS
+#!system=iOS
+#!date=2026-09-11
+#!arguments=account:{"title":"账号与密码","desc":"格式：邮箱#密码，用于Token失效时自动静默重登续期"}
+
+[Script]
+# 定时签到 (每天 09:15 自动执行)
+cron "15 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/akile.js, timeout=60, tag=AkileCloud每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png, argument={{{account}}}
+
+# 网页抓包凭据捕获 (访问网页时自动捕获)
+http-request ^https:\/\/api\.akile\.ai\/api\/v1\/user\/(login|info|Checkin) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/akile.js, requires-body=true, timeout=10, tag=AkileCloud会话捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
+
+[MITM]
+hostname = api.akile.ai

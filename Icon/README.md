@@ -28,6 +28,7 @@ Icon/
 | 图标名称 | 类别 | 分辨率 | 语义 / 适用插件 | GitHub Raw 链接 |
 | :--- | :---: | :---: | :--- | :--- |
 | **中国移动** | `App` | 512×512 | `10086.plugin` / 移动每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png` |
+| **AkileCloud** | `App` | 512×512 | `akile.plugin` / Akile每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png` |
 | **PingMe** | `App` | 512×512 | `pingme.plugin` / PingMe每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png` |
 | **阿里云盘** | `App` | 256×256 | `aDriveCheckIn.plugin` / 阿里网盘签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/ALiYunPan.png` |
 | **高德地图** | `App` | 512×512 | `ampDache.plugin` / 高德打车签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/amapIcon.png` |
