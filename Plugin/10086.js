@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 1.5.0
+ * @version 1.5.2
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -223,6 +223,15 @@ function handleCapture() {
   if (shouldRunOnCapture()) {
     handleSign(() => $done({}), captureType);
     return;
+  }
+  // 静默跳过时写入诊断日志（不弹窗），便于排查「打开 APP 无通知」是设计行为还是故障
+  if (readStore(KEY_RUN_DATE) === getTodayDateStr()) {
+    console.log(`[${SCRIPT_NAME}] 今日已完成签到（${getTodayDateStr()}），本次捕获触发按设计静默跳过，不再重复通知`);
+  } else {
+    const lock = parseInt(readStore(KEY_RUN_LOCK) || '0', 10);
+    if (lock && Date.now() - lock < 120000) {
+      console.log(`[${SCRIPT_NAME}] 执行锁生效中（120 秒内已有执行），本次捕获触发静默跳过`);
+    }
   }
   $done({});
 }

@@ -2,6 +2,11 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.5.2] - 2026-09-13
+
+### Added
+- **中国移动 (`Plugin/10086.js` v1.5.2)**：静默跳过（当日已签/执行锁）时写入诊断日志，便于区分「设计性无通知」与故障。
+
 ## [1.5.1] - 2026-09-13
 
 ### Changed
