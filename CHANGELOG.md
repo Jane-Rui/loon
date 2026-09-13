@@ -2,6 +2,24 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] - 2026-09-13
+
+### Changed
+- **中国移动 (`Plugin/10086.js` v1.4.0)**：触发方式简化为「捕获即触发」：
+  - 移除 10 秒执行窗口与 `cmcc_pending_run_ts`；捕获规则命中并拿到会话 Cookie 时，立即在本次请求上下文内联执行签到、累签领奖与资产查询（`shouldRunOnCapture()`）；
+  - 保留执行锁 `cmcc_run_lock_ts`（120 秒）防并发双触发与失败重试节流；当日完成标记 `cmcc_last_run_date` 阻断重复执行；
+  - Cron 入口仅响应 `argument` 含 `force` 的手动强制，普通定时触发为空操作（兼容旧配置残留 cron，不会重复签到）。
+
+## [1.3.0] - 2026-09-13
+
+### Changed
+- **中国移动 (`Plugin/10086.js` v1.3.0)**：触发方式由「每日固定 Cron」改为「凭据捕获触发，无定时依赖」：
+  - 捕获规则命中（APP 打开信号）时保存新鲜凭据并登记「+10 秒执行窗口」（`cmcc_pending_run_ts`），当次请求立即放行；
+  - 窗口到期后的下一次捕获请求在其上下文内联执行签到、累签领奖与资产查询（`resolvePendingWindow()` 状态机：done/registered/waiting/run）；
+  - 执行锁 `cmcc_run_lock_ts`（120 秒）防并发双触发并节流失败重试；当日成功写入 `cmcc_last_run_date` 后不再触发；
+  - Cron 入口仅保留 `argument` 含 `force` 的手动强制执行，普通定时触发为空操作；
+  - `Plugin/10086.plugin` 与 `tasks.scripts` 移除全部 10086 Cron，仅保留捕获规则（timeout 30）与注释形式的手动强制示例。
+
 ## [1.2.0] - 2026-09-13
 
 ### Changed
