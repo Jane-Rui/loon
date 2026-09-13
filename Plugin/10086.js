@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 1.5.2
+ * @version 1.6.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -29,6 +29,9 @@
  *    - 会话凭据为刚刚捕获的新鲜登录态，免除定时执行的重新登录握手；
  *    - 执行锁（120 秒）防并发双触发并节流失败重试；当日签到成功后不再触发；
  *    - 通知合并（v1.5.0）：凭据捕获不再单独弹窗，捕获来源并入签到结果通知统一推送；
+ *    - 多账号感知（v1.6.0）：以原生 Cookie 的 UID 为账号键，当日完成标记/执行锁/手机号
+ *      绑定均按账号隔离（cmcc_run_date_<uid> / cmcc_run_lock_<uid> / cmcc_tel_map），
+ *      同设备切换登录时每个账号各自「当天首开触发一次」；旧单值键自动迁移兼容；
  *    - Cron 仅用于 argument 含 force 的手动强制执行，普通定时触发为空操作。
  * 
  * ==============================================================================
@@ -53,8 +56,11 @@
 const SCRIPT_NAME = '中国移动签到';
 const KEY_TOKEN_INFO = 'cmcc_sign_token_info';
 const KEY_SESSION_COOKIE = 'cmcc_sign_session_cookie';
-const KEY_RUN_LOCK = 'cmcc_run_lock_ts';
-const KEY_RUN_DATE = 'cmcc_last_run_date';
+const KEY_RUN_LOCK = 'cmcc_run_lock';
+const KEY_RUN_DATE = 'cmcc_run_date';
+const KEY_LAST_UID = 'cmcc_last_uid';
+const KEY_TEL_MAP = 'cmcc_tel_map';
+const KEY_TEL_UID = 'cmcc_tel_uid';
 
 // 通用跨平台通知
 function notify(title, subtitle, message) {
@@ -128,19 +134,57 @@ function f(t){ return Array.from(t); }
 function pt(e){for(var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"service-module",r=[],n=0;n<e.length;n+=2)r.push(parseInt(e.substr(n,2),16));for(var o=[],i=0;i<t.length;i++)o.push(t.charCodeAt(i));for(var a=[],c=0;c<r.length;c++)c%3!=0&&a.push(r[c]);for(var s=f(Array(a.length).keys()),u=a.length-1;u>0;u--){var l=o[u%o.length]*(u+1)%(u+1),h=[s[l],s[u]];s[u]=h[0],s[l]=h[1]}for(var p=new Array(a.length),d=0;d<a.length;d++)p[s[d]]=a[d];for(var v=[],g=0;g<p.length;g++)v.push(p[g]^o[g%o.length]);return String.fromCharCode.apply(String,v)}var dt=pt("000a1d00040c00171100695a00190700370d001207005615"),vt=pt("00331b001559005511005d35000829003b05002403000826"),gt=pt("00524b004759005152001e59005e5300445d005d42005c4a");function yt(e){var t=ht.enc.Utf8.parse(dt),r=ht.enc.Utf8.parse(gt);return ht.AES.encrypt(e,t,{iv:r,mode:ht.mode.CBC,padding:ht.pad.Pkcs7}).toString()}function _t(e){return ht.MD5(e)}
 
 /**
- * 捕获即触发判定（无定时、无延迟窗口）：
+ * 账号键读写：以原生会话 Cookie 的 UID 作为账号唯一标识（同设备多账号隔离）
+ */
+function currentUid() {
+  return readStore(KEY_LAST_UID) || 'default';
+}
+function runDateKey(uid) { return KEY_RUN_DATE + '_' + uid; }
+function lockKey(uid) { return KEY_RUN_LOCK + '_' + uid; }
+
+/**
+ * 取某账号绑定的手机号（资产查询用）：优先 uid 映射，兼容旧单值键自动迁移
+ */
+function getTelForUid(uid) {
+  let map = {};
+  try { map = JSON.parse(readStore(KEY_TEL_MAP) || '{}'); } catch (e) {}
+  if (map[uid]) return map[uid];
+  const legacyTel = (readStore(KEY_CMCC_TEL) || '').trim();
+  const legacyUid = readStore(KEY_TEL_UID) || '';
+  if (/^\d{11}$/.test(legacyTel) && (legacyUid === uid || (!legacyUid && Object.keys(map).length === 0))) {
+    return legacyTel;
+  }
+  return '';
+}
+
+/**
+ * 绑定 uid 与手机号（force 登记时调用），同时回写旧单值键保持兼容
+ */
+function bindTel(uid, tel) {
+  let map = {};
+  try { map = JSON.parse(readStore(KEY_TEL_MAP) || '{}'); } catch (e) {}
+  map[uid] = tel;
+  writeStore(JSON.stringify(map), KEY_TEL_MAP);
+  writeStore(tel, KEY_CMCC_TEL);
+  writeStore(uid, KEY_TEL_UID);
+  console.log(`[${SCRIPT_NAME}] 已绑定账号 ${uid} ↔ 手机号 ${tel.slice(0,3)}****${tel.slice(7)}`);
+}
+
+/**
+ * 捕获即触发判定（无定时、无延迟窗口，按账号计日）：
  * 检测到凭据捕获（Cookie 到手）且当日未完成、无并发执行时返回 true，
  * 由调用方在本次捕获的脚本上下文内联执行签到与资产查询。
  * @returns {boolean} 是否应立即执行签到流程
  */
-function shouldRunOnCapture() {
+function shouldRunOnCapture(uid) {
   try {
-    if (readStore(KEY_RUN_DATE) === getTodayDateStr()) return false;
+    const accountKey = uid || currentUid();
+    if (readStore(runDateKey(accountKey)) === getTodayDateStr()) return false;
     const now = Date.now();
-    const lock = parseInt(readStore(KEY_RUN_LOCK) || '0', 10);
+    const lock = parseInt(readStore(lockKey(accountKey)) || '0', 10);
     if (lock && now - lock < 120000) return false; // 执行锁：防并发双触发 + 失败重试节流
-    writeStore(String(now), KEY_RUN_LOCK);
-    console.log(`[${SCRIPT_NAME}] 检测到凭据捕获（Cookie 已到手），立即执行签到与资产查询`);
+    writeStore(String(now), lockKey(accountKey));
+    console.log(`[${SCRIPT_NAME}] 检测到凭据捕获（账号 ${accountKey}，Cookie 已到手），立即执行签到与资产查询`);
     return true;
   } catch (e) {
     console.log(`[${SCRIPT_NAME}] 捕获触发判定异常: ${e.message}`);
@@ -160,6 +204,12 @@ function handleCapture() {
 
   let captured = false;
   let captureType = '';
+  const uidMatch = cookie.match(/UID=([A-Za-z0-9]+)/);
+  const reqUid = uidMatch ? uidMatch[1] : '';
+  if (reqUid && reqUid !== readStore(KEY_LAST_UID)) {
+    writeStore(reqUid, KEY_LAST_UID);
+    console.log(`[${SCRIPT_NAME}] 账号标识更新: ${reqUid}（同设备多账号按 UID 隔离计日）`);
+  }
 
   // 场景 A: 拦截 H5 活动中心 SSO 授权接口 (获取完整用户会话及省市地域参数)
   if (url.indexOf('/qwhdsso/appTokenLogin') > -1 && $request.body) {
@@ -219,18 +269,19 @@ function handleCapture() {
     console.log(`[${SCRIPT_NAME}] 成功捕获并更新凭证: ${captureType}（不单独弹窗，合并进签到通知）`);
   }
 
-  // 捕获即触发：Cookie 到手即在本次请求上下文内联执行签到（无定时、无延迟）
-  if (shouldRunOnCapture()) {
+  // 捕获即触发：Cookie 到手即在本次请求上下文内联执行签到（无定时、无延迟；按账号计日）
+  const activeUid = reqUid || currentUid();
+  if (shouldRunOnCapture(activeUid)) {
     handleSign(() => $done({}), captureType);
     return;
   }
   // 静默跳过时写入诊断日志（不弹窗），便于排查「打开 APP 无通知」是设计行为还是故障
-  if (readStore(KEY_RUN_DATE) === getTodayDateStr()) {
-    console.log(`[${SCRIPT_NAME}] 今日已完成签到（${getTodayDateStr()}），本次捕获触发按设计静默跳过，不再重复通知`);
+  if (readStore(runDateKey(activeUid)) === getTodayDateStr()) {
+    console.log(`[${SCRIPT_NAME}] 账号 ${activeUid} 今日已完成签到（${getTodayDateStr()}），本次捕获触发按设计静默跳过，不再重复通知`);
   } else {
-    const lock = parseInt(readStore(KEY_RUN_LOCK) || '0', 10);
+    const lock = parseInt(readStore(lockKey(activeUid)) || '0', 10);
     if (lock && Date.now() - lock < 120000) {
-      console.log(`[${SCRIPT_NAME}] 执行锁生效中（120 秒内已有执行），本次捕获触发静默跳过`);
+      console.log(`[${SCRIPT_NAME}] 账号 ${activeUid} 执行锁生效中（120 秒内已有执行），本次捕获触发静默跳过`);
     }
   }
   $done({});
@@ -514,15 +565,16 @@ async function handleSign(doneFn, captureNote) {
       notifyBody += `\n🎁 今日暂无待领取累签奖品`;
     }
 
-    // 6. 账户资产卡片（话费余额 / 通用流量 / 通用通话剩余）
-    const assetLines = await queryAccountAssets(tokenInfo);
+    // 6. 账户资产卡片（话费余额 / 通用流量 / 通用通话剩余；按账号绑定手机号）
+    const runUid = currentUid();
+    const assetLines = await queryAccountAssets(tokenInfo, runUid);
     if (assetLines) {
       notifyBody += `\n` + assetLines;
     }
 
     // 7. 签到成功（或今日已签）才标记当日完成，失败则留待下次 APP 打开重试
     if (signMsg === '签到成功！' || signMsg === '今日已完成签到，无需重复签到') {
-      writeStore(getTodayDateStr(), KEY_RUN_DATE);
+      writeStore(getTodayDateStr(), runDateKey(runUid));
     }
 
     notify(SCRIPT_NAME, notifySub, notifyBody);
@@ -587,23 +639,6 @@ function ensureDeviceProfile() {
 }
 
 /**
- * 获取用户手机号（仅存于本地沙盒；可通过 cron argument 或沙盒键 cmcc_tel 提供）
- * @returns {string} 11 位手机号或空串
- */
-function getCmccTel() {
-  if (typeof $argument !== 'undefined' && $argument) {
-    // argument 支持 "手机号" 或 "手机号#force" 形式，# 后为控制位
-    const arg = String($argument).split('#')[0].trim();
-    if (/^\d{11}$/.test(arg)) {
-      writeStore(arg, KEY_CMCC_TEL);
-      return arg;
-    }
-  }
-  const stored = (readStore(KEY_CMCC_TEL) || '').trim();
-  return /^\d{11}$/.test(stored) ? stored : '';
-}
-
-/**
  * 调用移动 biz-orange 业务网关（qen=1 加密信封，明文 JSON 响应）
  * @param {string} path 接口路径，如 /biz-orange/BN/realFeeQuery/getRealFee
  * @param {Object} reqBody 业务请求体
@@ -616,7 +651,7 @@ async function cmccBizRequest(path, reqBody, tokenInfo) {
   const jsidMatch = cookie.match(/JSESSIONID=([^;]+)/);
   const jsid = jsidMatch ? jsidMatch[1] : '';
   const profile = ensureDeviceProfile();
-  const tel = getCmccTel() || '0';
+  const tel = getTelForUid(currentUid()) || '0'; // 信封 tel 与当前账号绑定一致，未绑定则为 '0'
   const C = String(Date.now());
   const nonce = String(Math.floor(10000000 + Math.random() * 89999999));
   const envelope = {
@@ -672,12 +707,12 @@ async function cmccBizRequest(path, reqBody, tokenInfo) {
  * @param {Object} tokenInfo 持久化的原生会话凭证
  * @returns {Promise<string>} 多行文本，失败返回空串
  */
-async function queryAccountAssets(tokenInfo) {
+async function queryAccountAssets(tokenInfo, uid) {
   try {
-    const tel = getCmccTel();
+    const tel = getTelForUid(uid || currentUid());
     if (!tel) {
-      console.log(`[${SCRIPT_NAME}] 未配置手机号（cmcc_tel），跳过账户资产查询`);
-      return '';
+      console.log(`[${SCRIPT_NAME}] 账号 ${uid || currentUid()} 未绑定手机号，跳过账户资产查询`);
+      return '💳 资产卡片: 本账号未登记手机号，运行一次 #force 登记后显示';
     }
     const rb = { provinceCode: '771', cityCode: '0771', cellNum: tel };
     const lines = [];
@@ -724,10 +759,10 @@ if (typeof $request !== 'undefined') {
   const argStr = typeof $argument !== 'undefined' ? String($argument) : '';
   const telArg = argStr.split('#')[0].trim();
   if (/^\d{11}$/.test(telArg)) {
-    writeStore(telArg, KEY_CMCC_TEL);
+    bindTel(currentUid(), telArg); // 将手机号绑定到当前捕获的账号 UID（多账号各自登记）
   }
   if (argStr.indexOf('force') > -1) {
-    writeStore('', KEY_RUN_LOCK);
+    writeStore('', lockKey(currentUid()));
     handleSign();
   } else {
     console.log(`[${SCRIPT_NAME}] 本脚本为捕获触发模式，无需定时任务；打开中国移动 APP 即自动签到。手动强制执行请在 argument 追加 #force`);

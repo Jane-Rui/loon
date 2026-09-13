@@ -2,6 +2,15 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.6.0] - 2026-09-13
+
+### Added
+- **中国移动 (`Plugin/10086.js` v1.6.0) 多账号感知（同设备切换登录）**：
+  - 以原生会话 Cookie 的 `UID` 为账号键；当日完成标记 / 执行锁 / 手机号绑定全部按账号隔离（`cmcc_run_date_<uid>` / `cmcc_run_lock_<uid>` / `cmcc_tel_map`）；
+  - 同设备多账号时，每个账号各自「当天首次打开 APP 触发一次签到」，互不拦截；通知以掩码手机号区分身份；
+  - 手机号按账号绑定：插件新增 `tel_force` 参数（`手机号#force`），切换到目标账号后手动运行「中国移动手动签到与号码登记」一次即完成绑定；未绑定账号正常签到、资产卡片位置显示登记提示；
+  - 旧单值键（`cmcc_tel`）在单账号场景自动迁移兼容；biz-orange 信封 `tel` 与当前账号绑定保持一致。
+
 ## [1.5.2] - 2026-09-13
 
 ### Added
