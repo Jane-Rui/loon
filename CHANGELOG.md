@@ -2,6 +2,11 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.5.1] - 2026-09-13
+
+### Changed
+- **中国移动**：规则 tag 与插件描述更名为「中国移动自动签到」一体化命名（凭据捕获/签到领奖/余量查询已整合为单一脚本单一规则），替代旧「凭据捕获」字样；`Plugin/10086.plugin` 与 `tasks.scripts` 同步。
+
 ## [1.5.0] - 2026-09-13
 
 ### Changed
