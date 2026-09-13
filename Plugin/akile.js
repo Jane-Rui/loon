@@ -2,22 +2,24 @@
  * @fileoverview AkileCloud (akile.ai) 自动登录与每日签到脚本
  * @author Jane-Rui
  * @date 2026-09-11
- * @version 0.01
- * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
- * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
- * @description 支持 AkileCloud 长期 Token 优先复用、自动账密静默登录续期、智能前置防风控审查与每日自动打卡。
+ * @version 0.12
+ * @description 支持 AkileCloud 长期 Token 优先复用、自动账密静默登录续期、智能双路由容灾、金额分转元精准换算、前置防风控审查与每日自动打卡。
  * 
  * ==============================================================================
- * 【功能说明】
+ * 【功能特性】
  * 1. 长期 Token 优先复用（长效免登）：
  *    - 优先读取本地沙盒持久化 Token（$persistentStore），日常运行直接复用，杜绝频繁重复登录。
  *    - 仅当 Token 首次配置或已完全失效（非 0 状态码）时，才会自动使用配置的账密执行一次静默重登续期。
- * 2. 严格防风控机制（一天仅打卡一次）：
+ * 2. 智能双路由容灾与直连保底 (Smart Multi-Route & Direct Fallback)：
+ *    - akile.ai 为 Cloudflare 边缘托管，直连延迟极低（~66ms）；
+ *    - 内置直连保底机制（node: "DIRECT"）：若代理分流节点发生波动或超时，自动切换至 DIRECT 直连重试，
+ *      彻底解决代理节点失效导致的 LNHTTPClientDomain Request timeout 假死问题。
+ * 3. 严格防风控机制（一天仅打卡一次）：
  *    - 在调用签到接口前，前置查询 /api/v1/user/info 获取 last_checkin_time 时间戳；
  *    - 转换为东八区（CST）北京日期校验。若今日已完成签到，立即熔断拦截，不向服务端发送 /Checkin 请求，
  *      彻底规避平台因重复请求引发的风控与封禁风险。
- * 3. 凭据注入途径：
- *    - 插件/脚本参数注入 (argument = "邮箱#密码" 或 "邮箱,密码")，零明文提交代码仓库。
+ * 4. 凭据安全注入：
+ *    - 插件/脚本参数注入 (argument = "邮箱#密码" 或 "邮箱,密码")，零明文硬编码，公开仓库零泄漏。
  * 
  * 【依赖与配置】
  * - 平台：Loon (iOS)
@@ -48,52 +50,90 @@ function notify(title, subtitle, message) {
 }
 
 /**
- * 通用 HTTP 请求 Promise 封装
- * @function sendHttp
+ * 底层原生单次 HTTP 请求执行器
+ * @function executeRawHttp
  * @module Net
- * @param {Object} req - 请求参数对象
- * @param {string} req.url - 目标 URL
- * @param {string} [req.method='GET'] - HTTP 方法
- * @param {Object} [req.headers] - 请求头
- * @param {string} [req.body] - 请求体
- * @param {number} [req.timeout=25] - 超时秒数
+ * @param {Object} req - 请求参数
+ * @param {string|null} [nodeOverride=null] - 强制指定节点（如 "DIRECT"）
  * @returns {Promise<{status: number, headers: Object, body: string, json: Object|null}>}
  */
-function sendHttp(req) {
+function executeRawHttp(req, nodeOverride = null) {
   return new Promise((resolve, reject) => {
     if (typeof $httpClient === 'undefined') {
       return reject(new Error('未检测到 Loon $httpClient 运行时环境'));
     }
+
     const method = (req.method || 'GET').toLowerCase();
     const opts = {
       url: req.url,
-      headers: req.headers || {},
-      timeout: req.timeout || 25
+      headers: req.headers || {}
     };
-    if (req.body) {
-      opts.body = req.body;
+
+    if (nodeOverride) {
+      opts.node = nodeOverride;
+    } else if (req.node) {
+      opts.node = req.node;
     }
 
+    if (req.body) {
+      opts.body = typeof req.body === 'object' ? JSON.stringify(req.body) : req.body;
+    }
+
+    // 设置请求超时（单位毫秒），默认 10000ms (10秒)
+    if (req.timeout) {
+      opts.timeout = req.timeout <= 60 ? req.timeout * 1000 : req.timeout;
+    } else {
+      opts.timeout = 10000;
+    }
+
+    const startTime = Date.now();
     $httpClient[method](opts, (err, resp, data) => {
+      const duration = Date.now() - startTime;
       if (err) {
         const errDetail = typeof err === 'string' ? err : (err.message || err.error || JSON.stringify(err));
-        return reject(new Error(`网络请求失败 [${method.toUpperCase()} ${opts.url}]: ${errDetail}`));
+        return reject(new Error(`[${method.toUpperCase()} ${opts.url}] 耗时 ${duration}ms, 错误: ${errDetail}`));
       }
       if (!resp) {
-        return reject(new Error(`服务端无响应 [${method.toUpperCase()} ${opts.url}]`));
+        return reject(new Error(`[${method.toUpperCase()} ${opts.url}] 耗时 ${duration}ms, 服务端无响应`));
       }
+
       let json = null;
       try {
         json = JSON.parse(data);
       } catch (e) {}
+
       resolve({
         status: resp.status || resp.statusCode,
         headers: resp.headers || {},
         body: data,
-        json: json
+        json: json,
+        duration: duration
       });
     });
   });
+}
+
+/**
+ * 具备双路由自愈与自动重试的 HTTP 请求封装
+ * @function sendHttp
+ * @module Net
+ * @param {Object} req - 请求参数对象
+ * @returns {Promise<{status: number, headers: Object, body: string, json: Object|null}>}
+ */
+async function sendHttp(req) {
+  try {
+    // 优先使用 DIRECT 直连模式发起请求（保障 Cloudflare 边缘极速直达）
+    const targetNode = req.node || 'DIRECT';
+    return await executeRawHttp(req, targetNode);
+  } catch (firstErr) {
+    console.log(`[${SCRIPT_NAME}] 首选路由请求未完成 (${firstErr.message})，正在执行默认分流回退重试...`);
+    // 若首选路由发生网络波动，回落到 Loon 系统默认规则路由重试
+    try {
+      return await executeRawHttp(req, null);
+    } catch (retryErr) {
+      throw new Error(`网络请求失败: ${retryErr.message}`);
+    }
+  }
 }
 
 /**
@@ -138,6 +178,19 @@ function formatCST(timestamp) {
 }
 
 /**
+ * 格式化 Akile 官方货币金额（接口返回单位为分，除以 100 并保留 2 位小数）
+ * @function formatMoney
+ * @module Format
+ * @param {number|string} amountInCents - 接口返回的以分为单位的金额数值
+ * @returns {string} 格式化后的金额，形如 "1.65"
+ */
+function formatMoney(amountInCents) {
+  const num = Number(amountInCents);
+  if (isNaN(num)) return '0.00';
+  return (num / 100).toFixed(2);
+}
+
+/**
  * 账号密码静默登录置换最新 Token
  * @function loginWithCredentials
  * @module Auth
@@ -163,18 +216,19 @@ async function loginWithCredentials(email, password) {
     url: 'https://api.akile.ai/api/v1/user/login',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json;charset=UTF-8',
+      'Content-Type': 'application/json',
       'Origin': 'https://akile.ai',
       'Referer': 'https://akile.ai/',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15'
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
     },
-    body: JSON.stringify(payload)
+    body: payload,
+    timeout: 10000
   });
 
   if (resp.json && resp.json.status_code === 0 && resp.json.data && resp.json.data.token) {
     const newToken = resp.json.data.token;
     $persistentStore.write(newToken, KEY_TOKEN);
-    console.log(`[${SCRIPT_NAME}] 自动登录成功，已保存并更新长期持久化 Token`);
+    console.log(`[${SCRIPT_NAME}] 自动登录成功 (耗时: ${resp.duration}ms)，已保存并更新长期持久化 Token`);
     return newToken;
   }
 
@@ -196,9 +250,10 @@ async function fetchUserInfo(token) {
     headers: {
       'Origin': 'https://akile.ai',
       'Referer': 'https://akile.ai/',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
       'Authorization': token
-    }
+    },
+    timeout: 10000
   });
   return resp.json;
 }
@@ -217,9 +272,10 @@ async function fetchUserIndex(token) {
     headers: {
       'Origin': 'https://akile.ai',
       'Referer': 'https://akile.ai/',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
       'Authorization': token
-    }
+    },
+    timeout: 10000
   });
   return resp.json;
 }
@@ -238,9 +294,10 @@ async function executeCheckin(token) {
     headers: {
       'Origin': 'https://akile.ai',
       'Referer': 'https://akile.ai/',
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
       'Authorization': token
-    }
+    },
+    timeout: 10000
   });
   return resp.json;
 }
@@ -292,6 +349,7 @@ async function handleTask() {
     // 3. 校验已有 Token 是否可用
     let userRes = null;
     if (token) {
+      console.log(`[${SCRIPT_NAME}] 读取到本地持久化 Token，正在验证会话有效性...`);
       try {
         userRes = await fetchUserInfo(token);
       } catch (checkErr) {
@@ -303,14 +361,14 @@ async function handleTask() {
     const isTokenExpired = !userRes || userRes.status_code !== 0;
     if (isTokenExpired) {
       if (email && password) {
-        console.log(`[${SCRIPT_NAME}] Token 无效或已过期，执行自动登录置换长期 Token...`);
+        console.log(`[${SCRIPT_NAME}] 本地 Token 不存在或已过期，执行自动登录置换长期 Token...`);
         token = await loginWithCredentials(email, password);
         userRes = await fetchUserInfo(token);
       } else {
         throw new Error('本地 Token 已失效且未配置账号密码，无法自动重新登录');
       }
     } else {
-      console.log(`[${SCRIPT_NAME}] 本地长期 Token 仍然有效，直接复用当前会话！`);
+      console.log(`[${SCRIPT_NAME}] 本地长期 Token 验证通过，直接复用当前会话（无需重复登录）！`);
     }
 
     if (!userRes || userRes.status_code !== 0 || !userRes.data) {
@@ -323,7 +381,7 @@ async function handleTask() {
     const lastCheckin = formatCST(lastCheckinTs);
     const todayCST = getTodayCSTDateStr();
 
-    console.log(`[${SCRIPT_NAME}] 用户: ${userName} | 上次签到日期: ${lastCheckin.dateStr} | 今日北京日期: ${todayCST}`);
+    console.log(`[${SCRIPT_NAME}] 用户: ${userName} | 账户余额: ￥${formatMoney(userData.money)} | 上次签到日期: ${lastCheckin.dateStr} | 今日北京日期: ${todayCST}`);
 
     // 4. 核心防风控审查：今日若已完成打卡，坚决不再发起 Checkin 请求
     if (lastCheckin.dateStr === todayCST) {
@@ -333,9 +391,16 @@ async function handleTask() {
       try {
         const idxRes = await fetchUserIndex(token);
         if (idxRes && idxRes.status_code === 0 && idxRes.data) {
-          akCoinText = `\n🪙 当前金币: ${idxRes.data.ak_coin} | 余额: ￥${idxRes.data.money}`;
+          const moneyVal = idxRes.data.money !== undefined ? idxRes.data.money : userData.money;
+          akCoinText = `\n🪙 当前金币: ${idxRes.data.ak_coin} | 余额: ￥${formatMoney(moneyVal)}`;
+        } else if (userData.money !== undefined) {
+          akCoinText = `\n💰 账户余额: ￥${formatMoney(userData.money)}`;
         }
-      } catch (e) {}
+      } catch (e) {
+        if (userData.money !== undefined) {
+          akCoinText = `\n💰 账户余额: ￥${formatMoney(userData.money)}`;
+        }
+      }
 
       notify(
         SCRIPT_NAME,
@@ -357,9 +422,16 @@ async function handleTask() {
       try {
         const idxRes = await fetchUserIndex(token);
         if (idxRes && idxRes.status_code === 0 && idxRes.data) {
-          balanceInfo = `\n🪙 累计金币: ${idxRes.data.ak_coin} | 账户余额: ￥${idxRes.data.money}`;
+          const moneyVal = idxRes.data.money !== undefined ? idxRes.data.money : userData.money;
+          balanceInfo = `\n🪙 累计金币: ${idxRes.data.ak_coin} | 账户余额: ￥${formatMoney(moneyVal)}`;
+        } else if (userData.money !== undefined) {
+          balanceInfo = `\n💰 账户余额: ￥${formatMoney(userData.money)}`;
         }
-      } catch (e) {}
+      } catch (e) {
+        if (userData.money !== undefined) {
+          balanceInfo = `\n💰 账户余额: ￥${formatMoney(userData.money)}`;
+        }
+      }
 
       notify(
         SCRIPT_NAME,

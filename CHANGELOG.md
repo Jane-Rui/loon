@@ -1,30 +1,38 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+
+## [1.1.1] - 2026-09-13
+
+### Added
+- **文档**：README 新增 AkileCloud 凭证配置格式说明（`邮箱#密码`，含脱敏示例与插件参数 `account` 填写说明）。
+
+### Fixed
+- **AkileCloud (`Plugin/akile.js` v0.12)**：
+  - 修正账户余额展示单位：接口返回以「分」为单位，现按官方前端逻辑换算为元并保留两位小数；
+  - 修正请求超时参数单位（Loon `$httpClient` 超时单位为毫秒）；
+  - 优化 Token 生命周期日志：本地 Token 有效时直接复用，不再重复登录。
+
+### Changed
+- **AkileCloud (`Plugin/akile.plugin`)**：移除 MitM 会话捕获规则，凭证统一经插件参数 / `argument` 注入（无需解密 HTTPS）；
+- **文档**：`README.md`、`Icon/README.md`、`CHANGELOG.md` 重写为公开仓库文档风格（中性表述、结构化使用说明、隐私与免责声明）。
 
 ## [1.1.0] - 2026-09-13
 
 ### Added
-- **China Mobile (10086) 账户资产卡片**: 签到通知新增「话费余额 / 通用流量剩余 / 通用通话剩余」可视化卡片 (`Plugin/10086.js` v1.1.0)。
-  - 对接移动官方 biz-orange 业务网关 (`clientaccess.10086.cn/biz-orange/{BN,BH}/...`)：`getRealFee` 实时话费 (IT 20016) 与 `getNewPlanRemainQry` 新套餐余量 (IT 20085)。
-  - 加密方案依工程策略**直接扣取官方 JS 函数**：crypto-js 4.2.0 官方组件 + `CMCCService_module_lite.1.1.16.js` 的 `pt()/yt()/_t()`（AES-128-CBC 信封加密与 `x-token/x-sign` 签名链），零手写逆向实现；已用真实抓包向量交叉验证（x-token / x-sign / 信封解密逐项一致）。
-  - 响应双形态兜底：明文 JSON 与 `{"body":"<AES>"}` 加密包装均自动还原。
-  - 手机号仅经本地 `argument=` 或沙盒键 `cmcc_tel` 提供（`reqBody.cellNum` 服务端强校验），仓库零隐私泄露；未配置时静默跳过卡片、不影响签到主流程。
+- **中国移动 (`Plugin/10086.js` v1.1.0)**：签到通知新增账户资产卡片（话费余额 / 通用流量剩余 / 通用通话剩余）。
+  - 新增 `cmccBizRequest()` / `queryAccountAssets()` 模块，调用官方 biz-orange 网关 `getRealFee`（IT 20016）与 `getNewPlanRemainQry`（IT 20085）；
+  - 请求信封采用 AES-128-CBC 加密，加密与签名函数取自官方 H5 模块 `CMCCService_module_lite`，未自行实现逆向算法；
+  - 兼容明文 JSON 与 AES 加密包装两种响应形态；
+  - 手机号经本地 `argument=` 或沙盒键 `cmcc_tel` 提供，未配置时自动跳过卡片，不影响签到主流程。
 
-## [Unreleased] - 2026-09-11
+## [1.0.0] - 2026-09-11
 
 ### Added
-- **China Mobile (10086)**: 新增中国移动全自动签到与会话劫持脚本 (`Plugin/10086.js`)。
-  - 支持客户端原生 Token 与 H5 SSO 授权握手动态劫持。
-  - 支持原生凭证自动 SSO 换票自愈机制，解决会话 30 分钟过期痛点。
-  - 支持每日自动打卡与阶梯奖励（流量日包、大奖机会）自动领取。
-- **Plugin & Task**: 新增 `Plugin/10086_token_task` 与 `Plugin/10086.plugin` 插件配置。
-- **Tasks Scripts**: 新增 `tasks.scripts` 集中订阅合集，支持在 Loon 的 `[Remote Script]` 中一键托管运行。
-- **Icon**: 新增中国移动高清图标 `Icon/10086.png`。
-- **Documentation**: 新增 `README.md`，提供完整的插件目录说明与安全合规红线声明。
-- **PingMe**: 整合 PingMe 虚拟号码与短信平台自动签到及视频激励脚本 (`Plugin/pingme.js`) 与插件配置 (`Plugin/pingme_token_task`、`Plugin/pingme.plugin`)，支持多引擎 OCR 验证码自愈，统一 Qure `PostBox.png` 语义图标。
-- **Icon Assets Management**: 建立结构化 `Icon/` 资产目录体系（`Icon/App/` 应用原生高清 AppIcon 与 `Icon/Task/` 合集语义图标），收录中国移动 512×512 官方回旋标图标与 PingMe 512×512 官方应用图标，实现全量脚本 100% 本地化托管与零外部依赖。
-- **AkileCloud (akile.ai)**: 新增 AkileCloud 自动登录与每日签到脚本 (`Plugin/akile.js`) 与插件配置 (`Plugin/akile.plugin`)。
-  - 长期 Token 优先复用，杜绝频繁重复登录。
-  - 前置检测东八区 `last_checkin_time` 时间戳，今日已打卡立即熔断拦截，严格防风控。
-  - 提取官方最高清 512×512 AppIcon 本地化托管于 `Icon/App/akile.png`。
+- **中国移动 (`Plugin/10086.js`)**：活动中心每日自动签到、累签阶梯奖励自动领取；客户端原生凭证与 H5 SSO 会话捕获；会话失效自动换票续期；
+- **PingMe (`Plugin/pingme.js`)**：每日签到与视频激励任务，多引擎 OCR 验证码识别；
+- **AkileCloud (`Plugin/akile.js`)**：每日自动签到，长期 Token 持久化复用与账密自动重登，签到前防重复提交校验；
+- **阿里云盘 / 高德打车 / 海信爱家**：对应签到脚本与插件配置；
+- **合集订阅**：`tasks.scripts` 定时任务合集，支持 `[Remote Script]` 一键订阅；
+- **图标资产**：结构化 `Icon/` 目录（`Icon/App/` 应用图标、`Icon/Task/` 语义图标），根目录保留同名镜像以兼容旧引用；
+- **文档**：`README.md` 插件目录、使用说明与安全声明。

@@ -1,85 +1,123 @@
-# Loon 脚本与插件配置合集
+# loon
 
-本项目托管各类适用于 **Loon**（兼容 Surge、Quantumult X 等环境）的常用自动化脚本、签到任务与规则插件。
+适用于 **Loon** 的自动化脚本与插件合集（兼容 Surge、Quantumult X 的部分语法），覆盖每日签到、任务打卡、会话凭证本地化管理等场景。
 
----
-
-## ⚠️ 信息安全红线与合规声明
-
-- **严禁向本仓库提交任何私有密钥、Cookie、Token、手机号或个人账号密码等敏感信息。**
-- 本仓库所有脚本与插件均严格采用**模板化与动态捕获机制**，所有凭证仅在运行设备的本地沙盒环境（如 `$persistentStore`）中动态写入与读取，不会向任何第三方或云端服务器上报隐私数据。
+所有脚本遵循统一设计：**凭证本地沙盒存储 + 定时任务执行 + 系统通知反馈**，仓库内不包含任何账号、密码、Cookie 或 Token。
 
 ---
 
-## 📦 定时任务合集订阅（推荐）
+## 目录结构
 
-在 Loon 的配置文件 `[Remote Script]` 中添加以下订阅链接，即可一键载入合集中的所有定时签到任务：
+```text
+.
+├── Plugin/            # 各服务脚本与插件配置（*.js / *.plugin）
+├── Icon/              # 图标资产目录（结构说明见 Icon/README.md）
+├── tasks.scripts      # 定时任务合集订阅文件
+├── CHANGELOG.md       # 版本变更记录
+├── LICENSE            # MIT License
+└── README.md
+```
+
+---
+
+## 快速开始
+
+1. **环境要求**：已安装 Loon，并开启 MitM（HTTPS 解密），且系统已信任 Loon 证书；
+2. **订阅方式**（二选一）：
+   - 合集订阅（推荐）：在配置 `[Remote Script]` 中添加
+     ```ini
+     https://raw.githubusercontent.com/Jane-Rui/loon/main/tasks.scripts, tag=定时任务合集, enabled=true
+     ```
+   - 单插件订阅：在【插件】中添加对应 `.plugin` 链接（见下表）；
+3. **凭证捕获**：订阅后打开一次对应 APP（或进入对应活动页），脚本通过 MitM 自动捕获并本地持久化会话凭证，成功时弹出系统通知；
+4. **定时执行**：凭证就绪后按各插件内置 cron 自动签到，结果以系统通知推送；会话过期时脚本自动续期，无需重复抓包。
+
+---
+
+## 插件列表
+
+| 服务 | 插件配置 | 核心脚本 | 图标 | MitM 域名 | 功能说明 |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| 中国移动 | `Plugin/10086.plugin` | `Plugin/10086.js` | `Icon/App/10086.png` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 活动中心每日签到、累签阶梯奖励自动领取；会话凭证自动续期；可选账户资产卡片（话费 / 流量 / 通话余量） |
+| PingMe | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `Icon/App/PingMe.png` | `api.pingmeapp.net` | 每日签到打卡与视频激励任务，内置多引擎 OCR 验证码识别 |
+| AkileCloud | `Plugin/akile.plugin` | `Plugin/akile.js` | `Icon/App/akile.png` | 无需 MitM | 每日签到；长期 Token 优先复用，失效时账密自动重登；签到前防重复提交校验 |
+| 阿里云盘 | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `Icon/App/ALiYunPan.png` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 每日签到与奖励领取 |
+| 高德打车 | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `Icon/App/amapIcon.png` | `*.amap.com` | 每日打卡 |
+| 海信爱家 | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `Icon/App/hsayIcon.png` | `*.hisense.com` | 每日打卡与积分获取 |
+
+---
+
+## 使用说明
+
+### 中国移动（10086）
+
+**凭证捕获**
+
+1. 开启 MitM 并信任证书；
+2. 打开中国移动 APP 并登录，或进入首页【签到】；
+3. 收到「中国移动签到 - 授权状态获取成功」通知即完成捕获。
+
+**定时任务**：默认每日 08:30 执行签到与累签奖励领取；会话失效时自动以原生凭证重新握手续期。
+
+**账户资产卡片（可选，v1.1.0+）**
+
+签到通知可附带话费余额、通用流量剩余、通用通话剩余。该查询接口服务端校验手机号，需一次性登记（仅写入本机沙盒键 `cmcc_tel`，不上传、不入库）：
+
+1. 在配置 `[Script]` 中临时添加（替换 `argument` 为 11 位手机号）：
+   ```ini
+   cron "0 0 31 2 *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=10086号码登记, argument=手机号, enabled=true
+   ```
+   该 cron（2 月 31 日）不会自动触发，仅用于手动运行；
+2. 在 Loon 脚本列表中手动运行一次，收到带资产卡片的通知即登记成功；
+3. 删除该临时行。未登记时签到主流程不受影响，仅不展示资产卡片。
+
+### 其他服务
+
+- **PingMe / 阿里云盘 / 高德打车 / 海信爱家**：订阅插件后打开一次对应 APP 完成凭证捕获，随后按内置 cron 自动执行；
+- **AkileCloud**：无需 MitM，凭证配置方式见下。
+
+### AkileCloud（akile.ai）
+
+**凭证配置格式**
+
+账号凭证通过插件参数或脚本 `argument` 注入，格式为：
+
+```text
+邮箱#密码
+```
+
+（兼容 `邮箱,密码`；密码中若含 `#` 或 `,`，以第一个分隔符之前的部分为邮箱、其余整体作为密码。）
+
+脱敏示例（实际使用时请在本机替换为真实值，切勿将真实凭证提交到任何公开仓库）：
 
 ```ini
-https://raw.githubusercontent.com/Jane-Rui/loon/main/tasks.scripts, tag=Jane-Rui定时任务合集, enabled=true
+cron "15 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/akile.js, timeout=60, tag=AkileCloud每日签到, argument=j***o@example.com#p********d, enabled=true
 ```
 
----
-
-## 🧩 精选插件与脚本列表
-
-| 功能 / 插件名称 | 插件配置路径 | 核心脚本 | 图标预览 / 路径 | MitM 域名要求 | 说明 |
-| :--- | :--- | :--- | :---: | :--- | :--- |
-| **中国移动自动签到** | `Plugin/10086.plugin` | `Plugin/10086.js` | `Icon/App/10086.png` | `client.app.coc.10086.cn`<br>`apm.app.coc.10086.cn`<br>`wx.10086.cn` | 自动劫持 APP 登录态，支持原生凭据自动换票续期，每日自动签到并领取流量日包/话费等阶梯奖励 |
-| **PingMe 自动签到** | `Plugin/pingme.plugin` | `Plugin/pingme.js` | `Icon/App/PingMe.png` | `api.pingmeapp.net` | 自动抓取 queryBalanceAndBonus 参数，每日定时打卡并自动完成多轮视频激励，内置 OCR 识别验证码 |
-| **AkileCloud 自动签到** | `Plugin/akile.plugin` | `Plugin/akile.js` | `Icon/App/akile.png` | 无需 MitM | 支持账密自动重登续期、长期 Token 优先复用、智能前置防风控审查与每日自动打卡 |
-| **阿里云盘自动签到** | `Plugin/aDriveCheckIn.plugin` | `Plugin/aDriveCheckIn.js` | `Icon/App/ALiYunPan.png` | `auth.alipan.com`<br>`auth.aliyundrive.com` | 打开阿里网盘 APP 自动捕获凭据，每日定时签到与领取奖励 |
-| **高德打车自动签到** | `Plugin/ampDache.plugin` | `Plugin/ampDache.js` | `Icon/App/amapIcon.png` | `*.amap.com` | 打开高德地图打车自动抓取凭据并定时打卡 |
-| **海信爱家自动签到** | `Plugin/hsay.plugin` | `Plugin/hsay.js` | `Icon/App/hsayIcon.png` | `*.hisense.com` | 海信爱家打卡与积分获取 |
+- 使用 `.plugin` 订阅时，Loon 会提示填写插件参数 `account`，按同一格式输入即可；
+- 凭证仅保存在本机配置 / `$persistentStore` 沙盒中；
+- 登录成功后 Token 持久化复用（有效期 24 小时），过期或 IP 变动失效时自动以账密静默重登；
+- 签到前校验东八区当日是否已打卡，已打卡则熔断拦截重复请求。
 
 ---
 
-## 🎨 图标资产结构 (`Icon/`)
+## 隐私与安全
 
-仓库内设有独立、标准化的图标管理目录，详见 [`Icon/README.md`](Icon/README.md)：
-- **`Icon/App/`**：收录各服务官方 512×512 原生高清应用图标（中国移动、PingMe、阿里云盘、高德地图、海信爱家等）；
-- **`Icon/Task/`**：收录定时打卡、多任务合集等语义图标（`Daily.png`、`Tasks.png`）。
-- **向后兼容**：根目录保留各同名镜像图标文件，保障现有 Loon 配置与旧版引用 100% 顺畅加载。
+- 仓库内**不含**任何密钥、Cookie、Token、手机号或账号密码；所有示例配置均为占位符；
+- 会话凭证仅存储于运行设备的 `$persistentStore` 本地沙盒，脚本不向任何第三方上报数据；
+- 脚本仅向对应服务的官方域名发起请求；
+- 通过 `argument=` 传入的账号参数仅保存在用户本机配置或沙盒中。
 
----
+## 免责声明
 
-## 📱 中国移动自动签到使用方法
+- 本项目仅供学习与技术研究使用；使用本仓库脚本请自行遵守对应服务的服务条款，因使用产生的账号风险由使用者自行承担；
+- 脚本依赖的接口与页面结构来自各服务公开资源，官方调整后脚本可能失效，以实际运行结果为准；
+- 文中涉及的服务名称、商标与图标版权归原作者或权利方所有，本仓库图标仅用于配置项展示。
 
-### 1. 安装插件
-在 Loon 的【插件】列表中直接添加插件 URL：
-```text
-https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.plugin
-```
-或使用旧版任务命名：
-```text
-https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086_token_task
-```
+## 更新记录
 
-### 2. 授权捕获
-1. 确保 Loon 开启且 MitM 证书已处于“受信任”状态；
-2. 打开**中国移动 APP**，登录账号，或点击首页【签到】进入签到中心；
-3. 弹出系统通知 **「中国移动签到 - 授权状态获取成功」** 即代表凭证已成功保存。
+见 [CHANGELOG.md](CHANGELOG.md)。
 
-### 3. 自动运行
-脚本会在每天 **08:30** 自动执行签到打卡并自动领取累签奖励。若会话凭证失效，脚本将自动发起 SSO 刷新握手，无需反复手动抓包。
+## 许可证
 
-### 4. 账户资产卡片（可选启用）
-v1.1.0 起，签到通知可附带**话费余额 / 通用流量剩余 / 通用通话剩余**资产卡片（对接移动官方 biz-orange 网关，加密函数直接扣取官方 JS 实现）。
-
-由于服务端强校验 `cellNum`，需一次性登记本机号码（**仅写入您设备本地沙盒，绝不进入仓库**）：
-
-1. 在 Loon 配置 `[Script]` 中临时添加以下行（将 `argument` 替换为您的 11 位手机号）：
-   ```ini
-   cron "0 0 31 2 *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动签到号码登记, argument=您的11位手机号, enabled=true
-   ```
-   （`2 月 31 日` 为永不触发的占位 cron，仅用于手动运行一次）
-2. 在 Loon 脚本列表中**手动运行一次**该行：收到带资产卡片的通知即登记成功；
-3. 删除该临时行即可，后续每日签到通知将自动携带资产卡片。
-
-未登记号码时：签到主流程不受任何影响，仅跳过资产卡片。
-
----
-
-## 📄 开源许可证
-
-本项目遵循 [MIT License](LICENSE)。
+[MIT License](LICENSE)

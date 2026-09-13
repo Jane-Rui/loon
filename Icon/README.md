@@ -1,40 +1,44 @@
-# 🎨 Icon 资产与语义图标库
+# Icon 资产目录
 
-本目录集中管理与托管适用于 Loon / Surge / Quantumult X 的应用图标与任务合集图标。所有资源均托管在个人 GitHub 仓库，免受第三方外部图库失效或拉取阻断影响。
+本目录存放仓库内脚本与插件配置引用的图标资源，统一由本仓库托管，避免外部图床失效导致的加载失败。
 
----
-
-## 📁 目录结构规范
+## 目录结构
 
 ```text
 Icon/
-├── App/                  # 📱 应用原生官方高清图标 (AppIcon 512x512 / 256x256)
-│   ├── 10086.png         # 中国移动 官方 AppIcon (512×512)
-│   ├── PingMe.png        # PingMe 虚拟号码官方 AppIcon (512×512)
-│   ├── ALiYunPan.png     # 阿里云盘 官方 AppIcon (256×256)
-│   ├── amapIcon.png      # 高德地图 官方 AppIcon (512×512)
-│   ├── hsayIcon.png      # 海信爱家 官方 AppIcon (1280×1280)
-│   └── i-maotaiIcon.jpeg # i 茅台 官方 AppIcon (512×512)
-├── Task/                 # 🗂️ 任务、合集与功能状态语义图标
-│   ├── Daily.png         # 每日打卡 / 签到日历合集图标
-│   └── Tasks.png         # 任务总览 / 多合一自动化图标
-└── ...                   # 根目录保留同名镜像文件，保证向后完全兼容
+├── App/                  # 应用图标（各服务官方 AppIcon）
+│   ├── 10086.png         # 中国移动（512×512）
+│   ├── akile.png         # AkileCloud（512×512）
+│   ├── PingMe.png        # PingMe（512×512）
+│   ├── ALiYunPan.png     # 阿里云盘（256×256）
+│   ├── amapIcon.png      # 高德地图（512×512）
+│   ├── hsayIcon.png      # 海信爱家（1280×1280）
+│   └── i-maotaiIcon.jpeg # i 茅台（512×512）
+├── Task/                 # 任务 / 合集语义图标
+│   ├── Daily.png         # 每日签到合集（144×144）
+│   └── Tasks.png         # 定时任务合集（144×144）
+└── *.png                 # 根目录同名镜像，用于兼容历史引用
 ```
 
----
+## 引用清单
 
-## 🔗 图标直链清单 (Raw CDN)
-
-| 图标名称 | 类别 | 分辨率 | 语义 / 适用插件 | GitHub Raw 链接 |
+| 名称 | 类别 | 分辨率 | 适用配置 | 引用地址 |
 | :--- | :---: | :---: | :--- | :--- |
-| **中国移动** | `App` | 512×512 | `10086.plugin` / 移动每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png` |
-| **AkileCloud** | `App` | 512×512 | `akile.plugin` / Akile每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png` |
-| **PingMe** | `App` | 512×512 | `pingme.plugin` / PingMe每日签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png` |
-| **阿里云盘** | `App` | 256×256 | `aDriveCheckIn.plugin` / 阿里网盘签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/ALiYunPan.png` |
-| **高德地图** | `App` | 512×512 | `ampDache.plugin` / 高德打车签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/amapIcon.png` |
-| **海信爱家** | `App` | 1280×1280| `hsay.plugin` / 海信爱家签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png` |
-| **i茅台** | `App` | 512×512 | `i-maotai.plugin` / 茅台申购与签到 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/i-maotaiIcon.jpeg`|
-| **每日签到** | `Task`| 144×144 | `tasks.scripts` / 签到任务总合集 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Daily.png` |
-| **定时任务** | `Task`| 144×144 | 通用 Cron 定时任务合集 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Tasks.png` |
+| 中国移动 | App | 512×512 | `10086.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png` |
+| AkileCloud | App | 512×512 | `akile.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png` |
+| PingMe | App | 512×512 | `pingme.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png` |
+| 阿里云盘 | App | 256×256 | `aDriveCheckIn.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/ALiYunPan.png` |
+| 高德地图 | App | 512×512 | `ampDache.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/amapIcon.png` |
+| 海信爱家 | App | 1280×1280 | `hsay.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png` |
+| i 茅台 | App | 512×512 | `i-maotai.plugin` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/i-maotaiIcon.jpeg` |
+| 每日签到 | Task | 144×144 | `tasks.scripts` | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Daily.png` |
+| 定时任务 | Task | 144×144 | 通用 cron 合集 | `https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Tasks.png` |
 
-> **提示**：为保证配置向后兼容性，直接引用 `Icon/10086.png` 或 `Icon/App/10086.png` 均可正常加载。
+## 兼容性说明
+
+- 历史配置中引用 `Icon/<name>.png` 与 `Icon/App/<name>.png` 均有效（根目录保留同名镜像）；
+- 新增图标请放入对应子目录，并同步更新本清单。
+
+## 版权说明
+
+目录内应用图标版权归原作者或权利方所有，本仓库仅作为代理配置项的展示资源引用。
