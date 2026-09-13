@@ -5,8 +5,8 @@
 #!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Daily.png
 #!date=2026-09-11
 
-# 📱 通信与运营商（自动监听触发：打开中国移动 APP 自动提取凭据与手机号并签到，无定时任务）
-http-request ^https?:\/\/((client|apm|h)\.app\.coc\.10086\.cn\/biz-orange\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+# 📱 通信与运营商（自动监听触发：打开中国移动 APP 自动提取凭据与手机号并签到，过滤未授权握手）
+http-request ^https?:\/\/((client|apm|h)\.app\.coc\.10086\.cn\/biz-orange\/(DA|UN|BN|BH)\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=35, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 # 💬 虚拟号码与通信
 cron "30 10-14,18-22 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=180, tag=PingMe每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png

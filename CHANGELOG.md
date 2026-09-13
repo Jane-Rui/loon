@@ -2,6 +2,14 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.1.0] - 2026-09-13
+
+### Fixed
+- **中国移动 (`Plugin/10086.js` v2.1.0 & `Plugin/10086.plugin`) 修复抢跑与并发重复触发**：
+  - **排除未授权握手请求**：规则正则与脚本前置过滤彻底排除 `/biz-orange/LN/`（如 `uamrandcodelogin/autoLogin` 等尚未完成登录的底层请求），杜绝客户端握手期间抢跑导致的 `410000 登录状态已过期` 报错；
+  - **45 秒原子级节流防重**：引入 `cmcc_last_attempt_ts` 全局节流锁，彻底杜绝 APP 启动并发请求导致的多次重复执行；
+  - **多脚本体系拆分**：正式发布 `Plugin/10086_task.js` 作为独立手动执行脚本，供在 Loon 脚本列表中随时点击「运行」，零参数依赖。
+
 ## [2.0.0] - 2026-09-13
 
 ### Changed

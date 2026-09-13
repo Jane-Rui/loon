@@ -1,59 +1,15 @@
 /**
- * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
+ * @fileoverview 中国移动独立签到与资产查询任务（可随时在脚本列表中手动点击「运行」）
  * @author Jane-Rui
  * @version 2.1.0
- * @date 2026-09-11
+ * @date 2026-09-13
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
- * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
  * 
- * ==============================================================================
- * 【功能说明】
- * 1. 多层级会话凭据智能劫持与持久化：
- *    - 拦截 APP 客户端原生登录态 (client.app.coc.10086.cn / apm.app.coc.10086.cn)
- *    - 拦截 H5 活动中心 SSO 换票网关 (wx.10086.cn/qwhdsso/appTokenLogin)
- *    - 拦截签到活动页会话 Cookie (wx.10086.cn/qwhdhub/api/mark/)
- * 2. 独家自愈换票机制 (Auto-Refresh Session)：
- *    - 活动中心 Session Cookie (QWHD_SESSION_TOKEN) 有效期仅约 30 分钟。
- *    - 当定时签到检测到会话失效时，脚本自动利用持久化的客户端原生 Token 重新
- *      执行 SSO 换票握手流程，静默换取最新会话 Cookie，免去频繁手动抓包。
- * 3. 每日全自动签到与阶梯奖励自动领取：
- *    - 自动提交当日日历签到打卡；
- *    - 自动查询累签/连签奖励阶梯（如 2 签 1GB 日包、抽奖机会等），并自动领取；
- *    - 汇总签到状态、累计天数、到手奖品，推送系统通知；
- *    - 签到通知附带账户资产卡片：话费余额 / 通用流量剩余 / 通用通话剩余
- *      (biz-orange 网关 qen=1 加密信封查询，官方加密函数直接扣取嵌入)。
- * 4. 捕获即触发（v1.4.0，无定时、无延迟窗口）：
- *    - 捕获规则命中并拿到会话 Cookie 时，立即在本次请求上下文内联执行
- *      签到、累签领奖与话费/流量/通话资产查询；
- *    - 会话凭据为刚刚捕获的新鲜登录态，免除定时执行的重新登录握手；
- *    - 执行锁（120 秒）防并发双触发并节流失败重试；当日签到成功后不再触发；
- *    - 通知合并（v1.5.0）：凭据捕获不再单独弹窗，捕获来源并入签到结果通知统一推送；
- *    - 全自动监听、提取、签到闭环（v2.0.0）：
- *      ① 监听：自动拦截移动 APP 客户端请求；
- *      ② 提取：自动提取 Cookie、UID，并自动解密请求体提取真实手机号，彻底废除手动输入；
- *      ③ 触发：提取完成后立即内联执行签到、阶梯领奖与话费流量查询，单条通知推送；
- *      ④ 多账号支持：以 UID 为键隔离多账号状态，切换登录各自独立触发；
- *    - Cron 仅用于 argument 含 force 的手动强制执行，普通定时触发为空操作。
- * 
- * ==============================================================================
- * 【支持环境】
- * - Loon (推荐)
- * - Surge
- * - Quantumult X
- * 
- * 【使用说明】
- * 1. 开启 Loon 的 MitM 解密，确保已添加以下 Hostname：
- *    client.app.coc.10086.cn, apm.app.coc.10086.cn, wx.10086.cn
- * 2. 打开【中国移动 APP】，登录账号或进入首页【签到】；
- * 3. 弹出「中国移动签到 - 授权状态获取成功」通知即表示凭证劫持完成；
- * 4. 随后每天将在设定的 Cron 时间自动执行静默签到与领奖。
- * 
- * 【信息安全声明】
- * 本脚本严格遵循信息安全规范，公开代码不包含任何硬编码的密钥、Cookie 或用户隐私信息，
- * 所有的会话凭证均在用户本地客户端的私有沙盒存储（$persistentStore）中动态读写。
- * ==============================================================================
+ * 本脚本直接复用本地沙盒中已自动提取持久化的会话凭据与真实手机号，
+ * 独立执行签到打卡、领取阶梯奖励、查询话费与流量卡片，无需传入任何参数。
  */
+
 
 const SCRIPT_NAME = '中国移动签到';
 const KEY_TOKEN_INFO = 'cmcc_sign_token_info';
@@ -194,146 +150,6 @@ function shouldRunOnCapture(uid) {
   }
 }
 
-/**
- * ----------------------------------------------------------------------------
- * 1. 抓包拦截模式：捕获并劫持客户端原生凭据与 SSO 授权状态
- * ----------------------------------------------------------------------------
- */
-function handleCapture() {
-  const url = $request.url;
-  const headers = $request.headers || {};
-  const cookie = headers['Cookie'] || headers['cookie'] || '';
-
-  let captured = false;
-  let captureType = '';
-  const uidMatch = cookie.match(/UID=([A-Za-z0-9]+)/);
-  // 核心防御 1：忽略尚未完成登录授权的握手请求（如 autoLogin / LN/），放行等待客户端登录完成
-  if (url.indexOf('/biz-orange/LN/') > -1 || url.indexOf('uamrandcodelogin') > -1 || url.indexOf('autoLogin') > -1) {
-    console.log(`[${SCRIPT_NAME}] 检测到底层登录握手请求，放行等待客户端登录就绪...`);
-    $done({});
-    return;
-  }
-
-  const reqUid = uidMatch ? uidMatch[1] : '';
-  if (reqUid && reqUid !== readStore(KEY_LAST_UID)) {
-    writeStore(reqUid, KEY_LAST_UID);
-    console.log(`[${SCRIPT_NAME}] 账号标识更新: ${reqUid}（同设备多账号按 UID 隔离计日）`);
-  }
-
-  // 场景 A: 拦截 H5 活动中心 SSO 授权接口 (获取完整用户会话及省市地域参数)
-  if (url.indexOf('/qwhdsso/appTokenLogin') > -1 && $request.body) {
-    try {
-      const bodyObj = typeof $request.body === 'string' ? JSON.parse($request.body) : $request.body;
-      if (bodyObj && bodyObj.token) {
-        const tokenPayload = {
-          token: bodyObj.token,
-          provinceCode: bodyObj.provinceCode || '771',
-          cityCode: bodyObj.cityCode || '0771',
-          userCheckId: bodyObj.userCheckId || '',
-          carrierOperator: bodyObj.carrierOperator || '002',
-          appVersionCode: bodyObj.appVersionCode || '12.5.2',
-          updatedAt: new Date().toISOString()
-        };
-        writeStore(JSON.stringify(tokenPayload), KEY_TOKEN_INFO);
-        captured = true;
-        captureType = 'APP SSO 完整授权凭证';
-      }
-    } catch (e) {
-      console.log(`[${SCRIPT_NAME}] 解析 appTokenLogin body 失败: ${e.message}`);
-    }
-  }
-
-  // 场景 B: 拦截客户端原生请求 (client.app.coc.10086.cn 或 apm.app.coc.10086.cn)
-  else if (url.indexOf('10086.cn/biz-orange/') > -1 && cookie.indexOf('JSESSIONID=') > -1) {
-    const tokenMatch = cookie.match(/JSESSIONID=[^;]+;[^;]*UID=[^;]+;[^;]*ticketID=[^;]+/i) ||
-                       cookie.match(/JSESSIONID=[^;]+/i);
-    if (tokenMatch) {
-      let existing = {};
-      try {
-        existing = JSON.parse(readStore(KEY_TOKEN_INFO) || '{}');
-      } catch (e) {}
-
-      if (!existing.token || existing.token !== cookie) {
-        existing.token = cookie;
-        existing.updatedAt = new Date().toISOString();
-        writeStore(JSON.stringify(existing), KEY_TOKEN_INFO);
-        captured = true;
-        captureType = 'APP 客户端原生会话 Cookie';
-      }
-    }
-  }
-
-  // 自动解密提取手机号 (从 biz-orange 请求体中解密提取，无需用户手动输入)
-  if ($request.body && typeof $request.body === 'string' && $request.body.length > 40) {
-    try {
-      const dec = ht.AES.decrypt($request.body, ht.enc.Utf8.parse(dt), {
-        iv: ht.enc.Utf8.parse(gt),
-        mode: ht.mode.CBC,
-        padding: ht.pad.Pkcs7
-      }).toString(ht.enc.Utf8);
-      if (dec && dec.indexOf('{') > -1) {
-        const env = JSON.parse(dec.slice(dec.indexOf('{'), dec.lastIndexOf('}') + 1));
-        const extractedTel = env.tel || (env.reqBody && env.reqBody.cellNum) || '';
-        if (/^\d{11}$/.test(extractedTel)) {
-          const cookieStr = env.t || cookie;
-          const uM = cookieStr.match(/UID=([A-Za-z0-9]+)/);
-          const targetUid = uM ? uM[1] : (reqUid || currentUid());
-          bindTel(targetUid, extractedTel);
-          console.log(`[${SCRIPT_NAME}] 从网络请求体自动解密提取到手机号: ${extractedTel.slice(0,3)}****${extractedTel.slice(7)} (UID: ${targetUid})`);
-        }
-      }
-    } catch (e) {}
-  }
-
-  // 场景 C: 拦截签到 H5 内部 API (wx.10086.cn/qwhdhub/api/mark/)
-  else if (url.indexOf('/qwhdhub/api/mark/') > -1 && cookie.indexOf('QWHD_SESSION_TOKEN=') > -1) {
-    const prevCookie = readStore(KEY_SESSION_COOKIE);
-    if (cookie !== prevCookie) {
-      writeStore(cookie, KEY_SESSION_COOKIE);
-      captured = true;
-      captureType = '签到活动专属会话凭据';
-    }
-  }
-
-  // 捕获通知并入签到结果统一推送（避免「捕获一条 + 签到一条」的重复打扰）
-  if (captured) {
-    console.log(`[${SCRIPT_NAME}] 成功捕获并更新凭证: ${captureType}（不单独弹窗，合并进签到通知）`);
-  }
-
-  // 核心防御 2：全局 45 秒节流防重，彻底杜绝并发请求导致的多次重复触发
-  const activeUid = reqUid || currentUid();
-  const KEY_THROTTLE = 'cmcc_last_attempt_ts';
-  const now = Date.now();
-  const lastAttempt = parseInt(readStore(KEY_THROTTLE) || '0', 10);
-  if (now - lastAttempt < 45000) {
-    $done({});
-    return;
-  }
-
-  // 捕获即触发：Cookie 到手即在本次请求上下文内联执行签到（无定时、无延迟；按账号计日）
-  if (shouldRunOnCapture(activeUid)) {
-    writeStore(String(now), KEY_THROTTLE);
-    handleSign(() => $done({}), captureType);
-    return;
-  }
-
-  // 静默跳过时写入诊断日志（不弹窗），便于排查「打开 APP 无通知」是设计行为还是故障
-  if (readStore(runDateKey(activeUid)) === getTodayDateStr()) {
-    console.log(`[${SCRIPT_NAME}] 账号 ${activeUid} 今日已完成签到（${getTodayDateStr()}），本次捕获触发按设计静默跳过，不再重复通知`);
-  } else {
-    const lock = parseInt(readStore(lockKey(activeUid)) || '0', 10);
-    if (lock && Date.now() - lock < 120000) {
-      console.log(`[${SCRIPT_NAME}] 账号 ${activeUid} 执行锁生效中（120 秒内已有执行），本次捕获触发静默跳过`);
-    }
-  }
-  $done({});
-}
-
-/**
- * ----------------------------------------------------------------------------
- * 2. 签到执行模式：会话续期、提交签到、自动阶梯领奖
- * ----------------------------------------------------------------------------
- */
 async function handleSign(doneFn, captureNote) {
   const finish = typeof doneFn === 'function' ? doneFn : (() => $done());
   console.log(`[${SCRIPT_NAME}] 开始执行自动签到任务...`);
@@ -790,15 +606,7 @@ async function queryAccountAssets(tokenInfo, uid) {
   }
 }
 
-/**
- * 入口路由：
- * 1. 监听拦截模式 (存在 $request)：自动提取 Cookie/UID/手机号，并立即触发自动签到与查询
- * 2. 手动执行模式 (无 $request)：供用户在 Loon 脚本列表中随时点击「运行」，直接复用沙盒凭据执行签到与资产查询
- */
-if (typeof $request !== 'undefined') {
-  handleCapture();
-} else {
-  console.log(`[${SCRIPT_NAME}] 手动触发执行：直接复用本地沙盒凭据与手机号执行签到...`);
-  writeStore('', lockKey(currentUid()));
-  handleSign();
-}
+
+// 启动任务
+console.log(`[${SCRIPT_NAME}] 手动启动签到与资产查询任务...`);
+handleSign();
