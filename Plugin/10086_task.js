@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动独立签到与资产查询任务（可随时在脚本列表中手动点击「运行」）
  * @author Jane-Rui
- * @version 2.1.0
+ * @version 2.2.0
  * @date 2026-09-13
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -411,34 +411,56 @@ async function handleSign(doneFn, captureNote) {
       }
     }
 
-    // 5. 组织通知输出
-    let notifySub = `${userName} | ${signMsg}`;
-    const sessionLine = captureNote
-      ? `🔑 会话: 本次运行自动捕获${captureNote}，以新鲜登录态完成`
-      : `🔑 会话: 复用沙盒持久化凭据`;
-    let notifyBody = `${sessionLine}\n📅 本月累计签到: ${accumulateTimes} 天`;
-    if (awardResults.length > 0) {
-      notifyBody += `\n🎁 获得奖品: ${awardResults.join('、')}`;
-    } else {
-      notifyBody += `\n🎁 今日暂无待领取累签奖品`;
-    }
-
-    // 6. 账户资产卡片（话费余额 / 通用流量 / 通用通话剩余；按账号绑定手机号）
+    // 5. 账户资产查询（话费余额 / 通用流量 / 通用通话剩余）
     const runUid = currentUid();
-    const assetLines = await queryAccountAssets(tokenInfo, runUid);
-    if (assetLines) {
-      notifyBody += `\n` + assetLines;
+    const assets = await queryAccountAssets(tokenInfo, runUid);
+
+    // 6. 构造高直观度通知：去除所有技术噪点，三联排资产核心数据直接置顶直显（无需手动展开）
+    const phone = (assets && assets.tel) || (userName.match(/^1\d{10}$/) ? userName : '');
+    const phoneMask = phone
+      ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+      : (userName || '中国移动');
+    const notifyTitle = `中国移动 · ${phoneMask}`;
+
+    // 文案精简：去除“无需重复签到”等冗余字眼
+    const cleanSignMsg = signMsg.replace(/，无需重复签到|！/g, '');
+
+    // 副标题：三联排核心资产（iOS 横幅二级标题，粗体且默认单行直显，无需长按展开）
+    let notifySub = '';
+    const subParts = [];
+    if (assets) {
+      if (assets.fee) subParts.push(`💰 ￥${assets.fee}`);
+      if (assets.flow) subParts.push(`📶 ${assets.flow}`);
+      if (assets.voice) subParts.push(`📞 ${assets.voice}`);
+    }
+    if (subParts.length > 0) {
+      notifySub = subParts.join(' ｜ ');
+    } else {
+      notifySub = `📅 ${cleanSignMsg}（本月累计 ${accumulateTimes} 天）`;
     }
 
-    // 7. 签到成功（或今日已签）才标记当日完成，失败则留待下次 APP 打开重试
+    // 正文：首行核心数据再次强化，次行签到累计状态，末行中奖（无奖品时绝不输出废话）
+    const bodyLines = [];
+    if (subParts.length > 0) {
+      bodyLines.push(`💰 话费: ￥${assets.fee || '--'}   📶 流量: ${assets.flow || '--'}   📞 通话: ${assets.voice || '--'}`);
+    }
+    bodyLines.push(`📅 状态: ${cleanSignMsg}（本月累计 ${accumulateTimes} 天）`);
+    if (awardResults.length > 0) {
+      bodyLines.push(`🎁 领奖: ${awardResults.join('、')}`);
+    }
+    const notifyBody = bodyLines.join('\n');
+
+    // 7. 标记当日完成
     if (signMsg === '签到成功！' || signMsg === '今日已完成签到，无需重复签到') {
       writeStore(getTodayDateStr(), runDateKey(runUid));
     }
 
-    notify(SCRIPT_NAME, notifySub, notifyBody);
-    console.log(`[${SCRIPT_NAME}] 任务完成: ${notifySub} | ${notifyBody}`);
+    notify(notifyTitle, notifySub, notifyBody);
+    console.log(`[${SCRIPT_NAME}] 任务完成:\n标题: ${notifyTitle}\n副标题: ${notifySub}\n正文: ${notifyBody}`);
   } catch (err) {
     console.log(`[${SCRIPT_NAME}] 签到执行过程发生异常: ${err.stack || err.message}`);
+    const runUid = currentUid();
+    writeStore('', runDateKey(runUid));
     notify(SCRIPT_NAME, '❌ 签到执行异常', err.message || '请查看运行日志以获取详细信息');
   } finally {
     // 注意：失败时保留执行锁 120 秒，作为重试节流（避免 APP 开启期间失败刷屏）；
