@@ -5,8 +5,8 @@
 #!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/Task/Daily.png
 #!date=2026-09-11
 
-# 📱 通信与运营商（捕获触发：打开中国移动 APP 即自动签到，无定时任务）
-http-request ^https?:\/\/((client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+# 📱 通信与运营商（自动监听触发：打开中国移动 APP 自动提取凭据与手机号并签到，无定时任务）
+http-request ^https?:\/\/((client|apm|h)\.app\.coc\.10086\.cn\/biz-orange\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 # 💬 虚拟号码与通信
 cron "30 10-14,18-22 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=180, tag=PingMe每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
@@ -18,7 +18,7 @@ cron "10 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/ma
 cron "1 0 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/ampDache.js, timeout=300, tag=高德地图打车签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/amapIcon.png
 
 # 🖥️ VPS 与云服务
-cron "15 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/akile.js, timeout=60, tag=AkileCloud每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
+cron "15 9 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/akile.js, timeout=60, tag=AkileCloud自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/akile.png
 
 # 🏠 智慧生活与家居
 cron "15 8 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/hsay.js, timeout=60, tag=海信爱家签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/hsayIcon.png, enable=false

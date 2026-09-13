@@ -2,6 +2,15 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.0.0] - 2026-09-13
+
+### Changed
+- **中国移动 (`Plugin/10086.js` v2.0.0 & `Plugin/10086.plugin`)**：
+  - **自动解密提取手机号**：拦截客户端 `biz-orange` 请求体并使用官方 AES 密钥自动解密提取真实 11 位手机号（`tel`/`cellNum`）与 UID 绑定，**彻底废除手动输入手机号参数、argument 配置与假 cron 登记机制**；
+  - **清晰三步流水线**：打开 APP ➔ ① 监听拦截 ➔ ② 自动提取凭据与手机号 ➔ ③ 立即触发内联签到与资产查询；
+  - **提供独立手动签到入口**：插件内新增 `generic` 手动签到条目「中国移动手动签到」，用户可在 Loon 脚本列表中随时点击「运行」复用沙盒凭据执行签到与查询；
+  - **MitM 域名补齐**：扩展为 `*.app.coc.10086.cn`（覆盖包含手机号的 `h.app.coc.10086.cn` 流量）。
+
 ## [1.6.0] - 2026-09-13
 
 ### Added

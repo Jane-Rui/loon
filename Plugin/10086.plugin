@@ -1,17 +1,17 @@
 #!name=中国移动自动签到
-#!desc=中国移动一体化自动签到：凭据捕获、签到领奖、话费/流量/通话余量查询全整合；检测到 Cookie 捕获即自动执行，无定时依赖。
+#!desc=打开中国移动 APP 自动监听抓包、自动提取 Cookie/UID/手机号、立即触发签到与话费流量查询（无定时任务，无需手动输入任何参数）。
 #!author=Jane-Rui
 #!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 #!tag=签到,中国移动
-#!arguments=tel_force:{"title":"手机号登记与手动强制","desc":"格式：11位手机号#force。切换到目标账号后手动运行本条目一次，即绑定该账号并立即签到；2月31日永不自动触发","default":""}
 #!system=iOS
 #!date=2026-09-13
 
 [Script]
-# 凭据捕获规则（单一合并正则 = 触发源）：命中并拿到 Cookie 即内联执行签到
-http-request ^https?:\/\/((client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
-# 手动强制 + 多账号手机号登记：在插件参数填写「手机号#force」后手动运行一次（永不自动触发）
-cron "0 0 31 2 *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动手动签到与号码登记, argument={{{tel_force}}}, enabled=true
+# 1. 自动监听与触发：打开 APP 自动拦截、自动提取凭据与手机号，并立即执行签到与话费流量查询
+http-request ^https?:\/\/((client|apm|h)\.app\.coc\.10086\.cn\/biz-orange\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动自动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+
+# 2. 独立手动签到：可在 Loon 脚本列表中随时点击「运行」，直接复用沙盒凭据与手机号执行签到查询（无需任何参数）
+generic script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动手动签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 [MITM]
-hostname = client.app.coc.10086.cn, apm.app.coc.10086.cn, wx.10086.cn
+hostname = *.app.coc.10086.cn, wx.10086.cn

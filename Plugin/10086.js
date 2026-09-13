@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 1.6.0
+ * @version 2.0.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -29,9 +29,11 @@
  *    - 会话凭据为刚刚捕获的新鲜登录态，免除定时执行的重新登录握手；
  *    - 执行锁（120 秒）防并发双触发并节流失败重试；当日签到成功后不再触发；
  *    - 通知合并（v1.5.0）：凭据捕获不再单独弹窗，捕获来源并入签到结果通知统一推送；
- *    - 多账号感知（v1.6.0）：以原生 Cookie 的 UID 为账号键，当日完成标记/执行锁/手机号
- *      绑定均按账号隔离（cmcc_run_date_<uid> / cmcc_run_lock_<uid> / cmcc_tel_map），
- *      同设备切换登录时每个账号各自「当天首开触发一次」；旧单值键自动迁移兼容；
+ *    - 全自动监听、提取、签到闭环（v2.0.0）：
+ *      ① 监听：自动拦截移动 APP 客户端请求；
+ *      ② 提取：自动提取 Cookie、UID，并自动解密请求体提取真实手机号，彻底废除手动输入；
+ *      ③ 触发：提取完成后立即内联执行签到、阶梯领奖与话费流量查询，单条通知推送；
+ *      ④ 多账号支持：以 UID 为键隔离多账号状态，切换登录各自独立触发；
  *    - Cron 仅用于 argument 含 force 的手动强制执行，普通定时触发为空操作。
  * 
  * ==============================================================================
@@ -252,6 +254,28 @@ function handleCapture() {
         captureType = 'APP 客户端原生会话 Cookie';
       }
     }
+  }
+
+  // 自动解密提取手机号 (从 biz-orange 请求体中解密提取，无需用户手动输入)
+  if ($request.body && typeof $request.body === 'string' && $request.body.length > 40) {
+    try {
+      const dec = ht.AES.decrypt($request.body, ht.enc.Utf8.parse(dt), {
+        iv: ht.enc.Utf8.parse(gt),
+        mode: ht.mode.CBC,
+        padding: ht.pad.Pkcs7
+      }).toString(ht.enc.Utf8);
+      if (dec && dec.indexOf('{') > -1) {
+        const env = JSON.parse(dec.slice(dec.indexOf('{'), dec.lastIndexOf('}') + 1));
+        const extractedTel = env.tel || (env.reqBody && env.reqBody.cellNum) || '';
+        if (/^\d{11}$/.test(extractedTel)) {
+          const cookieStr = env.t || cookie;
+          const uM = cookieStr.match(/UID=([A-Za-z0-9]+)/);
+          const targetUid = uM ? uM[1] : (reqUid || currentUid());
+          bindTel(targetUid, extractedTel);
+          console.log(`[${SCRIPT_NAME}] 从网络请求体自动解密提取到手机号: ${extractedTel.slice(0,3)}****${extractedTel.slice(7)} (UID: ${targetUid})`);
+        }
+      }
+    } catch (e) {}
   }
 
   // 场景 C: 拦截签到 H5 内部 API (wx.10086.cn/qwhdhub/api/mark/)
@@ -712,7 +736,7 @@ async function queryAccountAssets(tokenInfo, uid) {
     const tel = getTelForUid(uid || currentUid());
     if (!tel) {
       console.log(`[${SCRIPT_NAME}] 账号 ${uid || currentUid()} 未绑定手机号，跳过账户资产查询`);
-      return '💳 资产卡片: 本账号未登记手机号，运行一次 #force 登记后显示';
+      return '💳 资产卡片: 尚未捕获到该账号手机号，请在 APP 中浏览任一页面自动提取';
     }
     const rb = { provinceCode: '771', cityCode: '0771', cellNum: tel };
     const lines = [];
@@ -749,23 +773,14 @@ async function queryAccountAssets(tokenInfo, uid) {
 }
 
 /**
- * 入口路由判断
- * - 拦截模式：捕获凭据（Cookie）后立即在捕获上下文内联执行签到（无定时依赖）
- * - Cron 模式：仅支持 argument 含 force 的手动强制执行；普通 Cron 触发为空操作
+ * 入口路由：
+ * 1. 监听拦截模式 (存在 $request)：自动提取 Cookie/UID/手机号，并立即触发自动签到与查询
+ * 2. 手动执行模式 (无 $request)：供用户在 Loon 脚本列表中随时点击「运行」，直接复用沙盒凭据执行签到与资产查询
  */
 if (typeof $request !== 'undefined') {
   handleCapture();
 } else {
-  const argStr = typeof $argument !== 'undefined' ? String($argument) : '';
-  const telArg = argStr.split('#')[0].trim();
-  if (/^\d{11}$/.test(telArg)) {
-    bindTel(currentUid(), telArg); // 将手机号绑定到当前捕获的账号 UID（多账号各自登记）
-  }
-  if (argStr.indexOf('force') > -1) {
-    writeStore('', lockKey(currentUid()));
-    handleSign();
-  } else {
-    console.log(`[${SCRIPT_NAME}] 本脚本为捕获触发模式，无需定时任务；打开中国移动 APP 即自动签到。手动强制执行请在 argument 追加 #force`);
-    $done();
-  }
+  console.log(`[${SCRIPT_NAME}] 手动触发执行：直接复用本地沙盒凭据与手机号执行签到...`);
+  writeStore('', lockKey(currentUid()));
+  handleSign();
 }
