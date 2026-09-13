@@ -63,6 +63,21 @@ https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086_token_task
 ### 3. 自动运行
 脚本会在每天 **08:30** 自动执行签到打卡并自动领取累签奖励。若会话凭证失效，脚本将自动发起 SSO 刷新握手，无需反复手动抓包。
 
+### 4. 账户资产卡片（可选启用）
+v1.1.0 起，签到通知可附带**话费余额 / 通用流量剩余 / 通用通话剩余**资产卡片（对接移动官方 biz-orange 网关，加密函数直接扣取官方 JS 实现）。
+
+由于服务端强校验 `cellNum`，需一次性登记本机号码（**仅写入您设备本地沙盒，绝不进入仓库**）：
+
+1. 在 Loon 配置 `[Script]` 中临时添加以下行（将 `argument` 替换为您的 11 位手机号）：
+   ```ini
+   cron "0 0 31 2 *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动签到号码登记, argument=您的11位手机号, enabled=true
+   ```
+   （`2 月 31 日` 为永不触发的占位 cron，仅用于手动运行一次）
+2. 在 Loon 脚本列表中**手动运行一次**该行：收到带资产卡片的通知即登记成功；
+3. 删除该临时行即可，后续每日签到通知将自动携带资产卡片。
+
+未登记号码时：签到主流程不受任何影响，仅跳过资产卡片。
+
 ---
 
 ## 📄 开源许可证

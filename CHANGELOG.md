@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-09-13
+
+### Added
+- **China Mobile (10086) 账户资产卡片**: 签到通知新增「话费余额 / 通用流量剩余 / 通用通话剩余」可视化卡片 (`Plugin/10086.js` v1.1.0)。
+  - 对接移动官方 biz-orange 业务网关 (`clientaccess.10086.cn/biz-orange/{BN,BH}/...`)：`getRealFee` 实时话费 (IT 20016) 与 `getNewPlanRemainQry` 新套餐余量 (IT 20085)。
+  - 加密方案依工程策略**直接扣取官方 JS 函数**：crypto-js 4.2.0 官方组件 + `CMCCService_module_lite.1.1.16.js` 的 `pt()/yt()/_t()`（AES-128-CBC 信封加密与 `x-token/x-sign` 签名链），零手写逆向实现；已用真实抓包向量交叉验证（x-token / x-sign / 信封解密逐项一致）。
+  - 响应双形态兜底：明文 JSON 与 `{"body":"<AES>"}` 加密包装均自动还原。
+  - 手机号仅经本地 `argument=` 或沙盒键 `cmcc_tel` 提供（`reqBody.cellNum` 服务端强校验），仓库零隐私泄露；未配置时静默跳过卡片、不影响签到主流程。
+
 ## [Unreleased] - 2026-09-11
 
 ### Added

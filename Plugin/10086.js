@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -20,7 +20,9 @@
  * 3. 每日全自动签到与阶梯奖励自动领取：
  *    - 自动提交当日日历签到打卡；
  *    - 自动查询累签/连签奖励阶梯（如 2 签 1GB 日包、抽奖机会等），并自动领取；
- *    - 汇总签到状态、累计天数、到手奖品，推送系统通知。
+ *    - 汇总签到状态、累计天数、到手奖品，推送系统通知；
+ *    - 签到通知附带账户资产卡片：话费余额 / 通用流量剩余 / 通用通话剩余
+ *      (biz-orange 网关 qen=1 加密信封查询，官方加密函数直接扣取嵌入)。
  * 
  * ==============================================================================
  * 【支持环境】
@@ -101,6 +103,21 @@ function getTodayDateStr() {
   const d = String(cst.getDate()).padStart(2, '0');
   return `${y}${m}${d}`;
 }
+
+/**
+ * ==============================================================================
+ * 【官方加密组件 —— 依工程策略：不手写逆向实现，直接扣取官方 JS 函数】
+ * - CryptoJS 4.2.0 官方组件 (core / enc-base64 / cipher-core / aes / md5)
+ * - pt() / yt() / _t() 及密钥常量扣取自中国移动官方 H5 模块:
+ *   https://app.online-cmcc.cn/cmcc-module/prod/js/CMCCService_module_lite.1.1.16.js
+ * - f() 为原模块 webpack 迭代器转数组辅助函数的等价 shim
+ * - 已用真实抓包向量交叉验证: x-token / x-sign / 信封解密 全部一致
+ * ==============================================================================
+ */
+!function(t,n){"object"==typeof exports?module.exports=exports=n():"function"==typeof define&&define.amd?define([],n):t.CryptoJS=n()}(this,function(){var i,f=Math;if("undefined"!=typeof window&&window.crypto&&(i=window.crypto),"undefined"!=typeof self&&self.crypto&&(i=self.crypto),!(i=!(i=!(i="undefined"!=typeof globalThis&&globalThis.crypto?globalThis.crypto:i)&&"undefined"!=typeof window&&window.msCrypto?window.msCrypto:i)&&"undefined"!=typeof global&&global.crypto?global.crypto:i)&&"function"==typeof require)try{i=require("crypto")}catch(t){}var e=Object.create||function(t){return n.prototype=t,t=new n,n.prototype=null,t};function n(){}var t={},r=t.lib={},o=r.Base={extend:function(t){var n=e(this);return t&&n.mixIn(t),n.hasOwnProperty("init")&&this.init!==n.init||(n.init=function(){n.$super.init.apply(this,arguments)}),(n.init.prototype=n).$super=this,n},create:function(){var t=this.extend();return t.init.apply(t,arguments),t},init:function(){},mixIn:function(t){for(var n in t)t.hasOwnProperty(n)&&(this[n]=t[n]);t.hasOwnProperty("toString")&&(this.toString=t.toString)},clone:function(){return this.init.prototype.extend(this)}},u=r.WordArray=o.extend({init:function(t,n){t=this.words=t||[],this.sigBytes=null!=n?n:4*t.length},toString:function(t){return(t||a).stringify(this)},concat:function(t){var n=this.words,e=t.words,i=this.sigBytes,r=t.sigBytes;if(this.clamp(),i%4)for(var o=0;o<r;o++){var s=e[o>>>2]>>>24-o%4*8&255;n[i+o>>>2]|=s<<24-(i+o)%4*8}else for(var a=0;a<r;a+=4)n[i+a>>>2]=e[a>>>2];return this.sigBytes+=r,this},clamp:function(){var t=this.words,n=this.sigBytes;t[n>>>2]&=4294967295<<32-n%4*8,t.length=f.ceil(n/4)},clone:function(){var t=o.clone.call(this);return t.words=this.words.slice(0),t},random:function(t){for(var n=[],e=0;e<t;e+=4)n.push(function(){if(i){if("function"==typeof i.getRandomValues)try{return i.getRandomValues(new Uint32Array(1))[0]}catch(t){}if("function"==typeof i.randomBytes)try{return i.randomBytes(4).readInt32LE()}catch(t){}}throw new Error("Native crypto module could not be used to get secure random number.")}());return new u.init(n,t)}}),s=t.enc={},a=s.Hex={stringify:function(t){for(var n=t.words,e=t.sigBytes,i=[],r=0;r<e;r++){var o=n[r>>>2]>>>24-r%4*8&255;i.push((o>>>4).toString(16)),i.push((15&o).toString(16))}return i.join("")},parse:function(t){for(var n=t.length,e=[],i=0;i<n;i+=2)e[i>>>3]|=parseInt(t.substr(i,2),16)<<24-i%8*4;return new u.init(e,n/2)}},c=s.Latin1={stringify:function(t){for(var n=t.words,e=t.sigBytes,i=[],r=0;r<e;r++){var o=n[r>>>2]>>>24-r%4*8&255;i.push(String.fromCharCode(o))}return i.join("")},parse:function(t){for(var n=t.length,e=[],i=0;i<n;i++)e[i>>>2]|=(255&t.charCodeAt(i))<<24-i%4*8;return new u.init(e,n)}},p=s.Utf8={stringify:function(t){try{return decodeURIComponent(escape(c.stringify(t)))}catch(t){throw new Error("Malformed UTF-8 data")}},parse:function(t){return c.parse(unescape(encodeURIComponent(t)))}},d=r.BufferedBlockAlgorithm=o.extend({reset:function(){this._data=new u.init,this._nDataBytes=0},_append:function(t){"string"==typeof t&&(t=p.parse(t)),this._data.concat(t),this._nDataBytes+=t.sigBytes},_process:function(t){var n,e=this._data,i=e.words,r=e.sigBytes,o=this.blockSize,s=r/(4*o),a=(s=t?f.ceil(s):f.max((0|s)-this._minBufferSize,0))*o,t=f.min(4*a,r);if(a){for(var c=0;c<a;c+=o)this._doProcessBlock(i,c);n=i.splice(0,a),e.sigBytes-=t}return new u.init(n,t)},clone:function(){var t=o.clone.call(this);return t._data=this._data.clone(),t},_minBufferSize:0}),h=(r.Hasher=d.extend({cfg:o.extend(),init:function(t){this.cfg=this.cfg.extend(t),this.reset()},reset:function(){d.reset.call(this),this._doReset()},update:function(t){return this._append(t),this._process(),this},finalize:function(t){return t&&this._append(t),this._doFinalize()},blockSize:16,_createHelper:function(e){return function(t,n){return new e.init(n).finalize(t)}},_createHmacHelper:function(e){return function(t,n){return new h.HMAC.init(e,n).finalize(t)}}}),t.algo={});return t});!function(r,e){"object"==typeof exports?module.exports=exports=e(require("./core")):"function"==typeof define&&define.amd?define(["./core"],e):e(r.CryptoJS)}(this,function(r){var v;return v=r.lib.WordArray,r.enc.Base64={stringify:function(r){for(var e=r.words,t=r.sigBytes,o=this._map,a=(r.clamp(),[]),n=0;n<t;n+=3)for(var i=(e[n>>>2]>>>24-n%4*8&255)<<16|(e[n+1>>>2]>>>24-(n+1)%4*8&255)<<8|e[n+2>>>2]>>>24-(n+2)%4*8&255,f=0;f<4&&n+.75*f<t;f++)a.push(o.charAt(i>>>6*(3-f)&63));var s=o.charAt(64);if(s)for(;a.length%4;)a.push(s);return a.join("")},parse:function(r){var e=r.length,t=this._map;if(!(o=this._reverseMap))for(var o=this._reverseMap=[],a=0;a<t.length;a++)o[t.charCodeAt(a)]=a;for(var n,i,f=t.charAt(64),s=(!f||-1!==(f=r.indexOf(f))&&(e=f),r),c=e,h=o,p=[],u=0,d=0;d<c;d++)d%4&&(i=h[s.charCodeAt(d-1)]<<d%4*2,n=h[s.charCodeAt(d)]>>>6-d%4*2,i=i|n,p[u>>>2]|=i<<24-u%4*8,u++);return v.create(p,u)},_map:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="},r.enc.Base64});!function(e,t){"object"==typeof exports?module.exports=exports=t(require("./core"),require("./evpkdf")):"function"==typeof define&&define.amd?define(["./core","./evpkdf"],t):t(e.CryptoJS)}(this,function(e){function c(e){return"string"==typeof e?l:u}function n(e,t,r){var i,c=this._iv;c?(i=c,this._iv=void 0):i=this._prevBlock;for(var n=0;n<r;n++)e[t+n]^=i[n]}var t,r,o,i,s,a,h,p,f,d,u,l;e.lib.Cipher||(t=(e=e).lib,r=t.Base,o=t.WordArray,i=t.BufferedBlockAlgorithm,(s=e.enc).Utf8,a=s.Base64,h=e.algo.EvpKDF,p=t.Cipher=i.extend({cfg:r.extend(),createEncryptor:function(e,t){return this.create(this._ENC_XFORM_MODE,e,t)},createDecryptor:function(e,t){return this.create(this._DEC_XFORM_MODE,e,t)},init:function(e,t,r){this.cfg=this.cfg.extend(r),this._xformMode=e,this._key=t,this.reset()},reset:function(){i.reset.call(this),this._doReset()},process:function(e){return this._append(e),this._process()},finalize:function(e){return e&&this._append(e),this._doFinalize()},keySize:4,ivSize:4,_ENC_XFORM_MODE:1,_DEC_XFORM_MODE:2,_createHelper:function(i){return{encrypt:function(e,t,r){return c(t).encrypt(i,e,t,r)},decrypt:function(e,t,r){return c(t).decrypt(i,e,t,r)}}}}),t.StreamCipher=p.extend({_doFinalize:function(){return this._process(!0)},blockSize:1}),s=e.mode={},f=t.BlockCipherMode=r.extend({createEncryptor:function(e,t){return this.Encryptor.create(e,t)},createDecryptor:function(e,t){return this.Decryptor.create(e,t)},init:function(e,t){this._cipher=e,this._iv=t}}),f=s.CBC=((s=f.extend()).Encryptor=s.extend({processBlock:function(e,t){var r=this._cipher,i=r.blockSize;n.call(this,e,t,i),r.encryptBlock(e,t),this._prevBlock=e.slice(t,t+i)}}),s.Decryptor=s.extend({processBlock:function(e,t){var r=this._cipher,i=r.blockSize,c=e.slice(t,t+i);r.decryptBlock(e,t),n.call(this,e,t,i),this._prevBlock=c}}),s),s=(e.pad={}).Pkcs7={pad:function(e,t){for(var t=4*t,r=t-e.sigBytes%t,i=r<<24|r<<16|r<<8|r,c=[],n=0;n<r;n+=4)c.push(i);t=o.create(c,r);e.concat(t)},unpad:function(e){var t=255&e.words[e.sigBytes-1>>>2];e.sigBytes-=t}},t.BlockCipher=p.extend({cfg:p.cfg.extend({mode:f,padding:s}),reset:function(){p.reset.call(this);var e,t=this.cfg,r=t.iv,t=t.mode;this._xformMode==this._ENC_XFORM_MODE?e=t.createEncryptor:(e=t.createDecryptor,this._minBufferSize=1),this._mode&&this._mode.__creator==e?this._mode.init(this,r&&r.words):(this._mode=e.call(t,this,r&&r.words),this._mode.__creator=e)},_doProcessBlock:function(e,t){this._mode.processBlock(e,t)},_doFinalize:function(){var e,t=this.cfg.padding;return this._xformMode==this._ENC_XFORM_MODE?(t.pad(this._data,this.blockSize),e=this._process(!0)):(e=this._process(!0),t.unpad(e)),e},blockSize:4}),d=t.CipherParams=r.extend({init:function(e){this.mixIn(e)},toString:function(e){return(e||this.formatter).stringify(this)}}),f=(e.format={}).OpenSSL={stringify:function(e){var t=e.ciphertext,e=e.salt,e=e?o.create([1398893684,1701076831]).concat(e).concat(t):t;return e.toString(a)},parse:function(e){var t,e=a.parse(e),r=e.words;return 1398893684==r[0]&&1701076831==r[1]&&(t=o.create(r.slice(2,4)),r.splice(0,4),e.sigBytes-=16),d.create({ciphertext:e,salt:t})}},u=t.SerializableCipher=r.extend({cfg:r.extend({format:f}),encrypt:function(e,t,r,i){i=this.cfg.extend(i);var c=e.createEncryptor(r,i),t=c.finalize(t),c=c.cfg;return d.create({ciphertext:t,key:r,iv:c.iv,algorithm:e,mode:c.mode,padding:c.padding,blockSize:e.blockSize,formatter:i.format})},decrypt:function(e,t,r,i){return i=this.cfg.extend(i),t=this._parse(t,i.format),e.createDecryptor(r,i).finalize(t.ciphertext)},_parse:function(e,t){return"string"==typeof e?t.parse(e,this):e}}),s=(e.kdf={}).OpenSSL={execute:function(e,t,r,i,c){i=i||o.random(8),c=(c?h.create({keySize:t+r,hasher:c}):h.create({keySize:t+r})).compute(e,i);e=o.create(c.words.slice(t),4*r);return c.sigBytes=4*t,d.create({key:c,iv:e,salt:i})}},l=t.PasswordBasedCipher=u.extend({cfg:u.cfg.extend({kdf:s}),encrypt:function(e,t,r,i){r=(i=this.cfg.extend(i)).kdf.execute(r,e.keySize,e.ivSize,i.salt,i.hasher),i.iv=r.iv,e=u.encrypt.call(this,e,t,r.key,i);return e.mixIn(r),e},decrypt:function(e,t,r,i){i=this.cfg.extend(i),t=this._parse(t,i.format);r=i.kdf.execute(r,e.keySize,e.ivSize,t.salt,i.hasher);return i.iv=r.iv,u.decrypt.call(this,e,t,r.key,i)}}))});!function(e,r){"object"==typeof exports?module.exports=exports=r(require("./core"),require("./enc-base64"),require("./md5"),require("./evpkdf"),require("./cipher-core")):"function"==typeof define&&define.amd?define(["./core","./enc-base64","./md5","./evpkdf","./cipher-core"],r):r(e.CryptoJS)}(this,function(e){for(var r=e,o=r.lib.BlockCipher,i=r.algo,h=[],t=[],n=[],c=[],s=[],d=[],u=[],f=[],y=[],p=[],_=[],a=0;a<256;a++)_[a]=a<128?a<<1:a<<1^283;for(var k=0,l=0,a=0;a<256;a++){var v=l^l<<1^l<<2^l<<3^l<<4,S=(h[k]=v=v>>>8^255&v^99,_[t[v]=k]),B=_[S],R=_[B],q=257*_[v]^16843008*v;n[k]=q<<24|q>>>8,c[k]=q<<16|q>>>16,s[k]=q<<8|q>>>24,d[k]=q,u[v]=(q=16843009*R^65537*B^257*S^16843008*k)<<24|q>>>8,f[v]=q<<16|q>>>16,y[v]=q<<8|q>>>24,p[v]=q,k?(k=S^_[_[_[R^S]]],l^=_[_[l]]):k=l=1}var C=[0,1,2,4,8,16,32,64,128,27,54],i=i.AES=o.extend({_doReset:function(){if(!this._nRounds||this._keyPriorReset!==this._key){for(var e=this._keyPriorReset=this._key,r=e.words,o=e.sigBytes/4,i=4*(1+(this._nRounds=6+o)),t=this._keySchedule=[],n=0;n<i;n++)n<o?t[n]=r[n]:(d=t[n-1],n%o?6<o&&n%o==4&&(d=h[d>>>24]<<24|h[d>>>16&255]<<16|h[d>>>8&255]<<8|h[255&d]):(d=h[(d=d<<8|d>>>24)>>>24]<<24|h[d>>>16&255]<<16|h[d>>>8&255]<<8|h[255&d],d^=C[n/o|0]<<24),t[n]=t[n-o]^d);for(var c=this._invKeySchedule=[],s=0;s<i;s++){var d,n=i-s;d=s%4?t[n]:t[n-4],c[s]=s<4||n<=4?d:u[h[d>>>24]]^f[h[d>>>16&255]]^y[h[d>>>8&255]]^p[h[255&d]]}}},encryptBlock:function(e,r){this._doCryptBlock(e,r,this._keySchedule,n,c,s,d,h)},decryptBlock:function(e,r){var o=e[r+1],o=(e[r+1]=e[r+3],e[r+3]=o,this._doCryptBlock(e,r,this._invKeySchedule,u,f,y,p,t),e[r+1]);e[r+1]=e[r+3],e[r+3]=o},_doCryptBlock:function(e,r,o,i,t,n,c,s){for(var d=this._nRounds,h=e[r]^o[0],u=e[r+1]^o[1],f=e[r+2]^o[2],y=e[r+3]^o[3],p=4,_=1;_<d;_++)var a=i[h>>>24]^t[u>>>16&255]^n[f>>>8&255]^c[255&y]^o[p++],k=i[u>>>24]^t[f>>>16&255]^n[y>>>8&255]^c[255&h]^o[p++],l=i[f>>>24]^t[y>>>16&255]^n[h>>>8&255]^c[255&u]^o[p++],v=i[y>>>24]^t[h>>>16&255]^n[u>>>8&255]^c[255&f]^o[p++],h=a,u=k,f=l,y=v;a=(s[h>>>24]<<24|s[u>>>16&255]<<16|s[f>>>8&255]<<8|s[255&y])^o[p++],k=(s[u>>>24]<<24|s[f>>>16&255]<<16|s[y>>>8&255]<<8|s[255&h])^o[p++],l=(s[f>>>24]<<24|s[y>>>16&255]<<16|s[h>>>8&255]<<8|s[255&u])^o[p++],v=(s[y>>>24]<<24|s[h>>>16&255]<<16|s[u>>>8&255]<<8|s[255&f])^o[p++];e[r]=a,e[r+1]=k,e[r+2]=l,e[r+3]=v},keySize:8});return r.AES=o._createHelper(i),e.AES});!function(e,r){"object"==typeof exports?module.exports=exports=r(require("./core")):"function"==typeof define&&define.amd?define(["./core"],r):r(e.CryptoJS)}(this,function(e){for(var c=Math,r=e,t=(o=r.lib).WordArray,n=o.Hasher,o=r.algo,b=[],s=0;s<64;s++)b[s]=4294967296*c.abs(c.sin(s+1))|0;function j(e,r,t,n,o,s,i){e=e+(r&t|~r&n)+o+i;return(e<<s|e>>>32-s)+r}function k(e,r,t,n,o,s,i){e=e+(r&n|t&~n)+o+i;return(e<<s|e>>>32-s)+r}function q(e,r,t,n,o,s,i){e=e+(r^t^n)+o+i;return(e<<s|e>>>32-s)+r}function z(e,r,t,n,o,s,i){e=e+(t^(r|~n))+o+i;return(e<<s|e>>>32-s)+r}return o=o.MD5=n.extend({_doReset:function(){this._hash=new t.init([1732584193,4023233417,2562383102,271733878])},_doProcessBlock:function(e,r){for(var t=0;t<16;t++){var n=r+t,o=e[n];e[n]=16711935&(o<<8|o>>>24)|4278255360&(o<<24|o>>>8)}var s=this._hash.words,i=e[r+0],a=e[r+1],c=e[r+2],h=e[r+3],f=e[r+4],u=e[r+5],d=e[r+6],l=e[r+7],_=e[r+8],p=e[r+9],v=e[r+10],y=e[r+11],D=e[r+12],H=e[r+13],M=e[r+14],g=e[r+15],m=j(s[0],B=s[1],x=s[2],w=s[3],i,7,b[0]),w=j(w,m,B,x,a,12,b[1]),x=j(x,w,m,B,c,17,b[2]),B=j(B,x,w,m,h,22,b[3]);m=j(m,B,x,w,f,7,b[4]),w=j(w,m,B,x,u,12,b[5]),x=j(x,w,m,B,d,17,b[6]),B=j(B,x,w,m,l,22,b[7]),m=j(m,B,x,w,_,7,b[8]),w=j(w,m,B,x,p,12,b[9]),x=j(x,w,m,B,v,17,b[10]),B=j(B,x,w,m,y,22,b[11]),m=j(m,B,x,w,D,7,b[12]),w=j(w,m,B,x,H,12,b[13]),x=j(x,w,m,B,M,17,b[14]),m=k(m,B=j(B,x,w,m,g,22,b[15]),x,w,a,5,b[16]),w=k(w,m,B,x,d,9,b[17]),x=k(x,w,m,B,y,14,b[18]),B=k(B,x,w,m,i,20,b[19]),m=k(m,B,x,w,u,5,b[20]),w=k(w,m,B,x,v,9,b[21]),x=k(x,w,m,B,g,14,b[22]),B=k(B,x,w,m,f,20,b[23]),m=k(m,B,x,w,p,5,b[24]),w=k(w,m,B,x,M,9,b[25]),x=k(x,w,m,B,h,14,b[26]),B=k(B,x,w,m,_,20,b[27]),m=k(m,B,x,w,H,5,b[28]),w=k(w,m,B,x,c,9,b[29]),x=k(x,w,m,B,l,14,b[30]),m=q(m,B=k(B,x,w,m,D,20,b[31]),x,w,u,4,b[32]),w=q(w,m,B,x,_,11,b[33]),x=q(x,w,m,B,y,16,b[34]),B=q(B,x,w,m,M,23,b[35]),m=q(m,B,x,w,a,4,b[36]),w=q(w,m,B,x,f,11,b[37]),x=q(x,w,m,B,l,16,b[38]),B=q(B,x,w,m,v,23,b[39]),m=q(m,B,x,w,H,4,b[40]),w=q(w,m,B,x,i,11,b[41]),x=q(x,w,m,B,h,16,b[42]),B=q(B,x,w,m,d,23,b[43]),m=q(m,B,x,w,p,4,b[44]),w=q(w,m,B,x,D,11,b[45]),x=q(x,w,m,B,g,16,b[46]),m=z(m,B=q(B,x,w,m,c,23,b[47]),x,w,i,6,b[48]),w=z(w,m,B,x,l,10,b[49]),x=z(x,w,m,B,M,15,b[50]),B=z(B,x,w,m,u,21,b[51]),m=z(m,B,x,w,D,6,b[52]),w=z(w,m,B,x,h,10,b[53]),x=z(x,w,m,B,v,15,b[54]),B=z(B,x,w,m,a,21,b[55]),m=z(m,B,x,w,_,6,b[56]),w=z(w,m,B,x,g,10,b[57]),x=z(x,w,m,B,d,15,b[58]),B=z(B,x,w,m,H,21,b[59]),m=z(m,B,x,w,f,6,b[60]),w=z(w,m,B,x,y,10,b[61]),x=z(x,w,m,B,c,15,b[62]),B=z(B,x,w,m,p,21,b[63]),s[0]=s[0]+m|0,s[1]=s[1]+B|0,s[2]=s[2]+x|0,s[3]=s[3]+w|0},_doFinalize:function(){for(var e=this._data,r=e.words,t=8*this._nDataBytes,n=8*e.sigBytes,o=(r[n>>>5]|=128<<24-n%32,c.floor(t/4294967296)),o=(r[15+(64+n>>>9<<4)]=16711935&(o<<8|o>>>24)|4278255360&(o<<24|o>>>8),r[14+(64+n>>>9<<4)]=16711935&(t<<8|t>>>24)|4278255360&(t<<24|t>>>8),e.sigBytes=4*(r.length+1),this._process(),this._hash),s=o.words,i=0;i<4;i++){var a=s[i];s[i]=16711935&(a<<8|a>>>24)|4278255360&(a<<24|a>>>8)}return o},clone:function(){var e=n.clone.call(this);return e._hash=this._hash.clone(),e}}),r.MD5=n._createHelper(o),r.HmacMD5=n._createHmacHelper(o),e.MD5});
+var ht = CryptoJS;
+function f(t){ return Array.from(t); }
+function pt(e){for(var t=arguments.length>1&&void 0!==arguments[1]?arguments[1]:"service-module",r=[],n=0;n<e.length;n+=2)r.push(parseInt(e.substr(n,2),16));for(var o=[],i=0;i<t.length;i++)o.push(t.charCodeAt(i));for(var a=[],c=0;c<r.length;c++)c%3!=0&&a.push(r[c]);for(var s=f(Array(a.length).keys()),u=a.length-1;u>0;u--){var l=o[u%o.length]*(u+1)%(u+1),h=[s[l],s[u]];s[u]=h[0],s[l]=h[1]}for(var p=new Array(a.length),d=0;d<a.length;d++)p[s[d]]=a[d];for(var v=[],g=0;g<p.length;g++)v.push(p[g]^o[g%o.length]);return String.fromCharCode.apply(String,v)}var dt=pt("000a1d00040c00171100695a00190700370d001207005615"),vt=pt("00331b001559005511005d35000829003b05002403000826"),gt=pt("00524b004759005152001e59005e5300445d005d42005c4a");function yt(e){var t=ht.enc.Utf8.parse(dt),r=ht.enc.Utf8.parse(gt);return ht.AES.encrypt(e,t,{iv:r,mode:ht.mode.CBC,padding:ht.pad.Pkcs7}).toString()}function _t(e){return ht.MD5(e)}
 
 /**
  * ----------------------------------------------------------------------------
@@ -460,6 +477,12 @@ async function handleSign() {
       notifyBody += `\n🎁 今日暂无待领取累签奖品`;
     }
 
+    // 6. 账户资产卡片（话费余额 / 通用流量 / 通用通话剩余）
+    const assetLines = await queryAccountAssets(tokenInfo);
+    if (assetLines) {
+      notifyBody += `\n` + assetLines;
+    }
+
     notify(SCRIPT_NAME, notifySub, notifyBody);
     console.log(`[${SCRIPT_NAME}] 任务完成: ${notifySub} | ${notifyBody}`);
   } catch (err) {
@@ -467,6 +490,181 @@ async function handleSign() {
     notify(SCRIPT_NAME, '❌ 签到执行异常', err.message || '请查看运行日志以获取详细信息');
   } finally {
     $done();
+  }
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * 3. 账户资产查询模块（话费余额 / 通用流量 / 通用通话剩余）
+ *    接口与加密方案来源：中国移动官方 H5 CMCCService_module / BasicService_H5module
+ *    网关：clientaccess.10086.cn /biz-orange/{BN,BH}/... (x-qen=1, 响应为明文 JSON)
+ * ----------------------------------------------------------------------------
+ */
+const CMCC_BIZ_HOST = 'clientaccess.10086.cn';
+const KEY_CMCC_TEL = 'cmcc_tel';
+const KEY_CMCC_PROFILE = 'cmcc_device_profile';
+
+/**
+ * 生成指定长度的随机十六进制字符串（用于本地设备档案，不含真实隐私）
+ * @param {number} len 长度
+ * @param {boolean} upper 是否大写
+ * @returns {string}
+ */
+function cmccRandomHex(len, upper) {
+  let s = '';
+  while (s.length < len) {
+    s += Math.random().toString(16).slice(2);
+  }
+  s = s.slice(0, len);
+  return upper ? s.toUpperCase() : s;
+}
+
+/**
+ * 读取或首次生成本地设备档案（cid/xk/imei/ak 等网关信封常量）
+ * @returns {Object}
+ */
+function ensureDeviceProfile() {
+  let profile = {};
+  try {
+    profile = JSON.parse(readStore(KEY_CMCC_PROFILE) || '{}');
+  } catch (e) {}
+  if (!profile.cid || !profile.xk) {
+    profile = {
+      cid: cmccRandomHex(64, false),
+      xk: cmccRandomHex(80, false),
+      imei: cmccRandomHex(31, true),
+      ak: cmccRandomHex(40, true),
+      createdAt: new Date().toISOString()
+    };
+    writeStore(JSON.stringify(profile), KEY_CMCC_PROFILE);
+    console.log(`[${SCRIPT_NAME}] 已生成本地设备档案并持久化`);
+  }
+  return profile;
+}
+
+/**
+ * 获取用户手机号（仅存于本地沙盒；可通过 cron argument 或沙盒键 cmcc_tel 提供）
+ * @returns {string} 11 位手机号或空串
+ */
+function getCmccTel() {
+  if (typeof $argument !== 'undefined' && $argument) {
+    const arg = String($argument).trim();
+    if (/^\d{11}$/.test(arg)) {
+      writeStore(arg, KEY_CMCC_TEL);
+      return arg;
+    }
+  }
+  const stored = (readStore(KEY_CMCC_TEL) || '').trim();
+  return /^\d{11}$/.test(stored) ? stored : '';
+}
+
+/**
+ * 调用移动 biz-orange 业务网关（qen=1 加密信封，明文 JSON 响应）
+ * @param {string} path 接口路径，如 /biz-orange/BN/realFeeQuery/getRealFee
+ * @param {Object} reqBody 业务请求体
+ * @param {Object} tokenInfo 持久化的原生会话凭证
+ * @returns {Promise<Object|null>} rspBody 或 null
+ */
+async function cmccBizRequest(path, reqBody, tokenInfo) {
+  if (!tokenInfo || !tokenInfo.token) return null;
+  const cookie = tokenInfo.token;
+  const jsidMatch = cookie.match(/JSESSIONID=([^;]+)/);
+  const jsid = jsidMatch ? jsidMatch[1] : '';
+  const profile = ensureDeviceProfile();
+  const tel = getCmccTel() || '0';
+  const C = String(Date.now());
+  const nonce = String(Math.floor(10000000 + Math.random() * 89999999));
+  const envelope = {
+    cid: profile.cid, en: '0', t: cookie, sn: 'iPhone16,2', cv: '12.5.2',
+    st: 2, sv: '26.6', sp: '1290x2796', xk: profile.xk, ak: profile.ak,
+    xc: 'B2000', imei: profile.imei, nt: '3', sb: 'apple',
+    prov: '771', city: '0771', tel: tel, reqBody: reqBody
+  };
+  const body = yt(JSON.stringify(envelope));
+  const S = `${profile.xk}_${path}_${C}_${nonce}`;
+  const xt = yt(S);
+  const sign = _t(`${xt}_${C}_${nonce}_${jsid}`).toString();
+  try {
+    const resp = await sendHttp({
+      url: `https://${CMCC_BIZ_HOST}${path}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Accept': 'application/json',
+        'x-qen': '1',
+        'x-time': C,
+        'x-nonce': nonce,
+        'x-token': xt,
+        'x-sign': sign,
+        'Cookie': cookie,
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148/wkwebview leadeon/12.5.2/CMCCIT',
+        'Origin': 'https://wx.10086.cn',
+        'Referer': 'https://wx.10086.cn/'
+      },
+      body: body
+    });
+    let parsed = JSON.parse(resp.body);
+    // 网关对原生 UA 可能回加密包装 {"body":"<AES>"}，用官方解密函数兜底还原
+    if (parsed && typeof parsed.body === 'string' && parsed.retCode === undefined) {
+      const plainBody = ht.AES.decrypt(parsed.body, ht.enc.Utf8.parse(vt), {
+        iv: ht.enc.Utf8.parse(gt), mode: ht.mode.CBC, padding: ht.pad.Pkcs7
+      }).toString(ht.enc.Utf8);
+      parsed = JSON.parse(plainBody);
+    }
+    if (parsed && parsed.retCode === '000000') {
+      return parsed.rspBody || {};
+    }
+    console.log(`[${SCRIPT_NAME}] 网关 ${path} 返回: ${parsed && parsed.retCode} ${parsed && parsed.retDesc}`);
+    return null;
+  } catch (e) {
+    console.log(`[${SCRIPT_NAME}] 网关 ${path} 请求异常: ${e.message}`);
+    return null;
+  }
+}
+
+/**
+ * 查询账户资产并格式化为通知卡片行（话费余额 / 通用流量 / 通用通话）
+ * @param {Object} tokenInfo 持久化的原生会话凭证
+ * @returns {Promise<string>} 多行文本，失败返回空串
+ */
+async function queryAccountAssets(tokenInfo) {
+  try {
+    const tel = getCmccTel();
+    if (!tel) {
+      console.log(`[${SCRIPT_NAME}] 未配置手机号（cmcc_tel），跳过账户资产查询`);
+      return '';
+    }
+    const rb = { provinceCode: '771', cityCode: '0771', cellNum: tel };
+    const lines = [];
+
+    const fee = await cmccBizRequest('/biz-orange/BN/realFeeQuery/getRealFee', rb, tokenInfo);
+    if (fee && (fee.curFeeTotal || fee.realBalanceFee)) {
+      lines.push(`💰 话费余额: ￥${fee.curFeeTotal || fee.realBalanceFee}`);
+    }
+
+    const remain = await cmccBizRequest('/biz-orange/BH/newPlanRemainQry/getNewPlanRemainQry', rb, tokenInfo);
+    if (remain && remain.newPlanRemainQryRes) {
+      const res = remain.newPlanRemainQryRes;
+      const voiceList = (res.planRemianVoiceListRes && res.planRemianVoiceListRes.planRemianVoiceInfoRes) || [];
+      const voice = voiceList.find(v => String(v.voicetype) === '0') || voiceList[0];
+      if (voice && voice.voiceRemainNum !== undefined) {
+        lines.push(`📞 通用通话剩余: ${voice.voiceRemainNum} 分钟`);
+      }
+      const flowList = (res.planRemianFlowListRes && res.planRemianFlowListRes.planRemianFlowRes) || [];
+      const flow = flowList.find(v => String(v.flowtype) === '0') || flowList[0];
+      if (flow && flow.flowRemainNum !== undefined) {
+        const mb = parseFloat(flow.flowRemainNum);
+        if (String(flow.unit) === '03') {
+          lines.push(mb >= 1000 ? `📶 通用流量剩余: ${(mb / 1000).toFixed(2)} GB` : `📶 通用流量剩余: ${mb} MB`);
+        } else {
+          lines.push(`📶 通用流量剩余: ${flow.flowRemainNum}`);
+        }
+      }
+    }
+    return lines.join('\n');
+  } catch (e) {
+    console.log(`[${SCRIPT_NAME}] 账户资产查询异常: ${e.message}`);
+    return '';
   }
 }
 
