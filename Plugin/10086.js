@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 2.2.0
+ * @version 2.3.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -144,6 +144,8 @@ function currentUid() {
 }
 function runDateKey(uid) { return KEY_RUN_DATE + '_' + uid; }
 function lockKey(uid) { return KEY_RUN_LOCK + '_' + uid; }
+function sessionCookieKey(uid) { return uid ? `${KEY_SESSION_COOKIE}_${uid}` : KEY_SESSION_COOKIE; }
+function tokenInfoKey(uid) { return uid ? `${KEY_TOKEN_INFO}_${uid}` : KEY_TOKEN_INFO; }
 
 /**
  * 取某账号绑定的手机号（资产查询用）：优先 uid 映射，兼容旧单值键自动迁移
@@ -151,12 +153,8 @@ function lockKey(uid) { return KEY_RUN_LOCK + '_' + uid; }
 function getTelForUid(uid) {
   let map = {};
   try { map = JSON.parse(readStore(KEY_TEL_MAP) || '{}'); } catch (e) {}
-  if (map[uid]) return map[uid];
-  const legacyTel = (readStore(KEY_CMCC_TEL) || '').trim();
-  const legacyUid = readStore(KEY_TEL_UID) || '';
-  if (/^\d{11}$/.test(legacyTel) && (legacyUid === uid || (!legacyUid && Object.keys(map).length === 0))) {
-    return legacyTel;
-  }
+  if (map && uid && map[uid]) return map[uid];
+  // 严格按 UID 匹配手机号，严禁跨账号回退污染其他账号！
   return '';
 }
 
@@ -214,48 +212,39 @@ function handleCapture() {
 
   const uidMatch = cookie.match(/UID=([A-Za-z0-9]+)/);
   const reqUid = uidMatch ? uidMatch[1] : '';
-  if (reqUid && reqUid !== readStore(KEY_LAST_UID)) {
+  const lastUid = readStore(KEY_LAST_UID) || '';
+
+  // 账号切换敏锐探测：若检测到 UID 发生变化，立即识别为账号切换事件
+  let isAccountSwitch = false;
+  if (reqUid && reqUid !== lastUid) {
+    console.log(`[${SCRIPT_NAME}] ⚡ 监测到账号切换: ${lastUid ? lastUid.slice(0, 10) + '...' : '无'} ➔ ${reqUid.slice(0, 10)}...`);
     writeStore(reqUid, KEY_LAST_UID);
-    console.log(`[${SCRIPT_NAME}] 账号标识更新: ${reqUid}（多账号按 UID 隔离）`);
+    // 切换账号时重置全局执行锁，确保新账号能立即触发执行，不受前一账号的冷却期阻断
+    writeStore('', KEY_GLOBAL_RUNNING);
+    isAccountSwitch = true;
   }
 
-  // 场景 A: 拦截 H5 活动中心 SSO 授权接口 (获取完整用户会话及省市地域参数)
-  if (url.indexOf('/qwhdsso/appTokenLogin') > -1 && $request.body) {
-    try {
-      const bodyObj = typeof $request.body === 'string' ? JSON.parse($request.body) : $request.body;
-      if (bodyObj && bodyObj.token) {
-        const tokenPayload = {
-          token: bodyObj.token,
-          provinceCode: bodyObj.provinceCode || '771',
-          cityCode: bodyObj.cityCode || '0771',
-          userCheckId: bodyObj.userCheckId || '',
-          carrierOperator: bodyObj.carrierOperator || '002',
-          appVersionCode: bodyObj.appVersionCode || '12.5.2',
-          updatedAt: new Date().toISOString()
-        };
-        writeStore(JSON.stringify(tokenPayload), KEY_TOKEN_INFO);
-        console.log(`[${SCRIPT_NAME}] 已更新 APP SSO 授权凭证`);
-      }
-    } catch (e) {}
-  }
+  const activeUid = reqUid || readStore(KEY_LAST_UID) || '';
 
-  // 场景 B: 拦截客户端原生请求 (client.app.coc.10086.cn 或 apm.app.coc.10086.cn)
+  // 场景 A: 拦截客户端原生请求，按 UID 分账号独立存储 Token
   if (url.indexOf('10086.cn/biz-orange/') > -1 && cookie.indexOf('JSESSIONID=') > -1) {
     const tokenMatch = cookie.match(/JSESSIONID=[^;]+;[^;]*UID=[^;]+;[^;]*ticketID=[^;]+/i) ||
                        cookie.match(/JSESSIONID=[^;]+/i);
     if (tokenMatch) {
+      const uKey = tokenInfoKey(activeUid);
       let existing = {};
-      try { existing = JSON.parse(readStore(KEY_TOKEN_INFO) || '{}'); } catch (e) {}
+      try { existing = JSON.parse(readStore(uKey) || '{}'); } catch (e) {}
       if (!existing.token || existing.token !== cookie) {
         existing.token = cookie;
         existing.updatedAt = new Date().toISOString();
+        writeStore(JSON.stringify(existing), uKey);
         writeStore(JSON.stringify(existing), KEY_TOKEN_INFO);
-        console.log(`[${SCRIPT_NAME}] 已更新 APP 原生会话 Cookie`);
+        console.log(`[${SCRIPT_NAME}] 已更新账号 ${activeUid ? activeUid.slice(0, 10) + '...' : '默认'} 的原生会话 Cookie`);
       }
     }
   }
 
-  // 场景 C: 从 biz-orange 请求体自动解密提取真实 11 位手机号 (无需用户手动配置)
+  // 场景 B: 从 biz-orange 请求体自动解密提取真实 11 位手机号并按 UID 准确绑定
   if ($request.body && typeof $request.body === 'string' && $request.body.length > 40) {
     try {
       const dec = ht.AES.decrypt($request.body, ht.enc.Utf8.parse(dt), {
@@ -269,52 +258,55 @@ function handleCapture() {
         if (/^\d{11}$/.test(extractedTel)) {
           const cookieStr = env.t || cookie;
           const uM = cookieStr.match(/UID=([A-Za-z0-9]+)/);
-          const targetUid = uM ? uM[1] : (reqUid || currentUid());
-          bindTel(targetUid, extractedTel);
-          console.log(`[${SCRIPT_NAME}] 自动提取并绑定手机号: ${extractedTel.slice(0,3)}****${extractedTel.slice(7)} (UID: ${targetUid})`);
+          const targetUid = uM ? uM[1] : (reqUid || activeUid);
+          if (targetUid) {
+            bindTel(targetUid, extractedTel);
+            console.log(`[${SCRIPT_NAME}] 自动提取并绑定手机号: ${extractedTel.slice(0,3)}****${extractedTel.slice(7)} (UID: ${targetUid.slice(0, 10)}...)`);
+          }
         }
       }
     } catch (e) {}
   }
 
-  // 场景 D: 拦截签到 H5 内部 API (wx.10086.cn/qwhdhub/api/mark/)
+  // 场景 C: 拦截签到 H5 内部 API，按 UID 独立持久化活动专属 Cookie
   if (url.indexOf('/qwhdhub/api/mark/') > -1 && cookie.indexOf('QWHD_SESSION_TOKEN=') > -1) {
-    const prevCookie = readStore(KEY_SESSION_COOKIE);
+    const sKey = sessionCookieKey(activeUid);
+    const prevCookie = readStore(sKey);
     if (cookie !== prevCookie) {
+      writeStore(cookie, sKey);
       writeStore(cookie, KEY_SESSION_COOKIE);
-      console.log(`[${SCRIPT_NAME}] 已更新签到专属会话凭据`);
+      console.log(`[${SCRIPT_NAME}] 已更新账号 ${activeUid ? activeUid.slice(0, 10) + '...' : '默认'} 的签到专属会话凭据`);
     }
   }
 
   // ================= 严格单次触发核心闸门 =================
   // 关键防御 A：无明确 UID 的辅助请求（如 H5 页面、统计埋点等）只作为数据捕获源，绝不触发签到
-  const activeUid = reqUid || readStore(KEY_LAST_UID) || '';
-  if (!activeUid) {
+  if (!activeUid || activeUid === 'default') {
     $done({});
     return;
   }
 
-  // 关键防御 B：全局 60 秒硬锁，彻底消除并发请求导致的任何双重通知
+  // 关键防御 B：全局 60 秒硬锁（发生账号切换时除外），杜绝并发双发
   const now = Date.now();
   const globalLock = parseInt(readStore(KEY_GLOBAL_RUNNING) || '0', 10);
-  if (globalLock && now - globalLock < 60000) {
+  if (!isAccountSwitch && globalLock && now - globalLock < 60000) {
     $done({});
     return;
   }
 
-  // 关键防御 C：账号当日完成检查（按账号 UID 隔离）
+  // 关键防御 C：账号当日完成检查（严格按账号 UID 隔离）
   if (readStore(runDateKey(activeUid)) === getTodayDateStr()) {
-    console.log(`[${SCRIPT_NAME}] 账号 ${activeUid} 今日已完成签到（${getTodayDateStr()}），静默放行`);
+    console.log(`[${SCRIPT_NAME}] 账号 ${activeUid.slice(0, 10)}... 今日已完成签到（${getTodayDateStr()}），静默放行`);
     $done({});
     return;
   }
 
-  // 原子锁定：立即写入全局执行锁与当日完成标记，杜绝任何后续并发请求渗透
+  // 原子锁定：立即写入全局执行锁与该账号当日完成标记
   writeStore(String(now), KEY_GLOBAL_RUNNING);
   writeStore(getTodayDateStr(), runDateKey(activeUid));
 
-  console.log(`[${SCRIPT_NAME}] 凭据就绪，立即执行签到与资产查询（账号: ${activeUid}）`);
-  handleSign(() => $done({}));
+  console.log(`[${SCRIPT_NAME}] 凭据就绪，立即执行签到与资产查询（账号: ${activeUid.slice(0, 10)}...）`);
+  handleSign(() => $done({}), activeUid);
 }
 
 /**
@@ -322,12 +314,15 @@ function handleCapture() {
  * 2. 签到执行模式：会话续期、提交签到、自动阶梯领奖
  * ----------------------------------------------------------------------------
  */
-async function handleSign(doneFn, captureNote) {
+async function handleSign(doneFn, activeUid) {
   const finish = typeof doneFn === 'function' ? doneFn : (() => $done());
-  console.log(`[${SCRIPT_NAME}] 开始执行自动签到任务...`);
+  const uid = activeUid || currentUid();
+  console.log(`[${SCRIPT_NAME}] 开始执行账号 ${uid ? uid.slice(0, 10) + '...' : '当前'} 的自动签到任务...`);
 
-  let sessionCookie = readStore(KEY_SESSION_COOKIE) || '';
-  let tokenInfoStr = readStore(KEY_TOKEN_INFO) || '';
+  // 严格按 UID 读取会话凭据，杜绝跨账号会话串联污染
+  let sessionCookie = uid ? (readStore(sessionCookieKey(uid)) || '') : (readStore(KEY_SESSION_COOKIE) || '');
+  let tokenInfoStr = uid ? (readStore(tokenInfoKey(uid)) || '') : (readStore(KEY_TOKEN_INFO) || '');
+  if (!tokenInfoStr) tokenInfoStr = readStore(KEY_TOKEN_INFO) || '';
   let tokenInfo = {};
   try {
     tokenInfo = JSON.parse(tokenInfoStr);
@@ -463,8 +458,9 @@ async function handleSign(doneFn, captureNote) {
     }
 
     sessionCookie = `QWHD_SESSION_TOKEN=${newToken}; ${router};`;
+    if (uid) writeStore(sessionCookie, sessionCookieKey(uid));
     writeStore(sessionCookie, KEY_SESSION_COOKIE);
-    console.log(`[${SCRIPT_NAME}] 成功刷新并持久化最新会话 Cookie！`);
+    console.log(`[${SCRIPT_NAME}] 成功刷新并持久化账号 ${uid ? uid.slice(0, 10) + '...' : ''} 的专属会话 Cookie！`);
     return sessionCookie;
   }
 
@@ -584,8 +580,7 @@ async function handleSign(doneFn, captureNote) {
     }
 
     // 5. 账户资产查询（话费余额 / 通用流量 / 通用通话剩余）
-    const runUid = currentUid();
-    const assets = await queryAccountAssets(tokenInfo, runUid);
+    const assets = await queryAccountAssets(tokenInfo, uid);
 
     // 6. 构造高直观度通知：去除所有技术噪点，三联排资产核心数据直接置顶直显（无需手动展开）
     const phone = (assets && assets.tel) || (userName.match(/^1\d{10}$/) ? userName : '');
@@ -624,7 +619,7 @@ async function handleSign(doneFn, captureNote) {
 
     // 7. 标记当日完成
     if (signMsg === '签到成功！' || signMsg === '今日已完成签到，无需重复签到') {
-      writeStore(getTodayDateStr(), runDateKey(runUid));
+      writeStore(getTodayDateStr(), runDateKey(uid));
     }
 
     notify(notifyTitle, notifySub, notifyBody);
@@ -632,8 +627,7 @@ async function handleSign(doneFn, captureNote) {
   } catch (err) {
     console.log(`[${SCRIPT_NAME}] 签到执行过程发生异常: ${err.stack || err.message}`);
     // 异常时清除当日标记允许重试
-    const runUid = currentUid();
-    writeStore('', runDateKey(runUid));
+    if (uid) writeStore('', runDateKey(uid));
     notify(SCRIPT_NAME, '❌ 签到执行异常', err.message || '请查看运行日志以获取详细信息');
   } finally {
     // 注意：失败时保留执行锁 120 秒，作为重试节流（避免 APP 开启期间失败刷屏）；

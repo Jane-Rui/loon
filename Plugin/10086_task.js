@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动独立签到与资产查询任务（可随时在脚本列表中手动点击「运行」）
  * @author Jane-Rui
- * @version 2.2.0
+ * @version 2.3.0
  * @date 2026-09-13
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -99,6 +99,8 @@ function currentUid() {
 }
 function runDateKey(uid) { return KEY_RUN_DATE + '_' + uid; }
 function lockKey(uid) { return KEY_RUN_LOCK + '_' + uid; }
+function sessionCookieKey(uid) { return uid ? `${KEY_SESSION_COOKIE}_${uid}` : KEY_SESSION_COOKIE; }
+function tokenInfoKey(uid) { return uid ? `${KEY_TOKEN_INFO}_${uid}` : KEY_TOKEN_INFO; }
 
 /**
  * 取某账号绑定的手机号（资产查询用）：优先 uid 映射，兼容旧单值键自动迁移
@@ -106,12 +108,7 @@ function lockKey(uid) { return KEY_RUN_LOCK + '_' + uid; }
 function getTelForUid(uid) {
   let map = {};
   try { map = JSON.parse(readStore(KEY_TEL_MAP) || '{}'); } catch (e) {}
-  if (map[uid]) return map[uid];
-  const legacyTel = (readStore(KEY_CMCC_TEL) || '').trim();
-  const legacyUid = readStore(KEY_TEL_UID) || '';
-  if (/^\d{11}$/.test(legacyTel) && (legacyUid === uid || (!legacyUid && Object.keys(map).length === 0))) {
-    return legacyTel;
-  }
+  if (map && uid && map[uid]) return map[uid];
   return '';
 }
 
@@ -150,12 +147,14 @@ function shouldRunOnCapture(uid) {
   }
 }
 
-async function handleSign(doneFn, captureNote) {
+async function handleSign(doneFn, activeUid) {
   const finish = typeof doneFn === 'function' ? doneFn : (() => $done());
-  console.log(`[${SCRIPT_NAME}] 开始执行自动签到任务...`);
+  const uid = activeUid || currentUid();
+  console.log(`[${SCRIPT_NAME}] 开始执行账号 ${uid ? uid.slice(0, 10) + '...' : '当前'} 的签到任务...`);
 
-  let sessionCookie = readStore(KEY_SESSION_COOKIE) || '';
-  let tokenInfoStr = readStore(KEY_TOKEN_INFO) || '';
+  let sessionCookie = uid ? (readStore(sessionCookieKey(uid)) || '') : (readStore(KEY_SESSION_COOKIE) || '');
+  let tokenInfoStr = uid ? (readStore(tokenInfoKey(uid)) || '') : (readStore(KEY_TOKEN_INFO) || '');
+  if (!tokenInfoStr) tokenInfoStr = readStore(KEY_TOKEN_INFO) || '';
   let tokenInfo = {};
   try {
     tokenInfo = JSON.parse(tokenInfoStr);
@@ -291,8 +290,9 @@ async function handleSign(doneFn, captureNote) {
     }
 
     sessionCookie = `QWHD_SESSION_TOKEN=${newToken}; ${router};`;
+    if (uid) writeStore(sessionCookie, sessionCookieKey(uid));
     writeStore(sessionCookie, KEY_SESSION_COOKIE);
-    console.log(`[${SCRIPT_NAME}] 成功刷新并持久化最新会话 Cookie！`);
+    console.log(`[${SCRIPT_NAME}] 成功刷新并持久化账号 ${uid ? uid.slice(0, 10) + '...' : ''} 的专属会话 Cookie！`);
     return sessionCookie;
   }
 
@@ -412,8 +412,7 @@ async function handleSign(doneFn, captureNote) {
     }
 
     // 5. 账户资产查询（话费余额 / 通用流量 / 通用通话剩余）
-    const runUid = currentUid();
-    const assets = await queryAccountAssets(tokenInfo, runUid);
+    const assets = await queryAccountAssets(tokenInfo, uid);
 
     // 6. 构造高直观度通知：去除所有技术噪点，三联排资产核心数据直接置顶直显（无需手动展开）
     const phone = (assets && assets.tel) || (userName.match(/^1\d{10}$/) ? userName : '');
@@ -452,7 +451,7 @@ async function handleSign(doneFn, captureNote) {
 
     // 7. 标记当日完成
     if (signMsg === '签到成功！' || signMsg === '今日已完成签到，无需重复签到') {
-      writeStore(getTodayDateStr(), runDateKey(runUid));
+      writeStore(getTodayDateStr(), runDateKey(uid));
     }
 
     notify(notifyTitle, notifySub, notifyBody);

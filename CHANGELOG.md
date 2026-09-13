@@ -2,6 +2,14 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.3.0] - 2026-09-13
+
+### Fixed
+- **中国移动 (`Plugin/10086.js` v2.3.0 & `Plugin/10086_task.js` v2.3.0) 修复一键切换账号身份与数据串号**：
+  - **H5 会话与原生 Token 按 UID 绝对隔离**：`sessionCookieKey(uid)` 与 `tokenInfoKey(uid)` 完全独立化，彻底废除跨账号共享全局 `sessionCookie`；切换账号时绝不复用前一账号的 H5 会话，强制触发独立 SSO 换票，确保签到主体与手机号 100% 对应当前切换后的真实账号；
+  - **账号切换敏锐探测**：拦截到原生 Cookie 的 `UID` 变更时，立即标记账号切换事件并重置全局执行锁，确保切换账号后能立即为新账号触发签到，不受前一账号 60 秒冷却期阻断；
+  - **彻底清除跨账号手机号回退**：`getTelForUid(uid)` 严格以当前 UID 映射为准，严禁回退至其他账号手机号，杜绝显示旧手机号。
+
 ## [2.2.0] - 2026-09-13
 
 ### Fixed
