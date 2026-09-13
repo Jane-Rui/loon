@@ -7,10 +7,8 @@
 #!date=2026-09-13
 
 [Script]
-# 凭据捕获规则 = 触发源：命中并拿到 Cookie 即内联执行签到（timeout 需覆盖签到耗时）
-http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=30, tag=中国移动原生凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动SSO凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=30, tag=中国移动签到会话捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+# 凭据捕获规则（单一合并正则 = 触发源）：命中并拿到 Cookie 即内联执行签到
+http-request ^https?:\/\/((client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 # 可选：手动强制执行（登记手机号并立即签到，无视监听窗口）；2月31日永不自动触发
 # cron "0 0 31 2 *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=60, tag=中国移动手动签到, argument=手机号#force, enabled=true
 

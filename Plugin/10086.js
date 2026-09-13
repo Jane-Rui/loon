@@ -1,7 +1,7 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 1.4.0
+ * @version 1.5.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -28,6 +28,7 @@
  *      签到、累签领奖与话费/流量/通话资产查询；
  *    - 会话凭据为刚刚捕获的新鲜登录态，免除定时执行的重新登录握手；
  *    - 执行锁（120 秒）防并发双触发并节流失败重试；当日签到成功后不再触发；
+ *    - 通知合并（v1.5.0）：凭据捕获不再单独弹窗，捕获来源并入签到结果通知统一推送；
  *    - Cron 仅用于 argument 含 force 的手动强制执行，普通定时触发为空操作。
  * 
  * ==============================================================================
@@ -52,7 +53,6 @@
 const SCRIPT_NAME = '中国移动签到';
 const KEY_TOKEN_INFO = 'cmcc_sign_token_info';
 const KEY_SESSION_COOKIE = 'cmcc_sign_session_cookie';
-const KEY_LAST_CAPTURE = 'cmcc_sign_last_capture_time';
 const KEY_RUN_LOCK = 'cmcc_run_lock_ts';
 const KEY_RUN_DATE = 'cmcc_last_run_date';
 
@@ -157,8 +157,6 @@ function handleCapture() {
   const url = $request.url;
   const headers = $request.headers || {};
   const cookie = headers['Cookie'] || headers['cookie'] || '';
-  const now = Date.now();
-  const lastCapture = parseInt(readStore(KEY_LAST_CAPTURE) || '0', 10);
 
   let captured = false;
   let captureType = '';
@@ -216,22 +214,14 @@ function handleCapture() {
     }
   }
 
-  // 成功捕获后触发通知（加入 30 秒节流防重，避免频繁弹窗打扰）
+  // 捕获通知并入签到结果统一推送（避免「捕获一条 + 签到一条」的重复打扰）
   if (captured) {
-    if (now - lastCapture > 30000) {
-      writeStore(String(now), KEY_LAST_CAPTURE);
-      notify(
-        `${SCRIPT_NAME} - 授权状态获取成功`,
-        `成功捕获: ${captureType}`,
-        '凭证已安全保存在本地沙盒，签到将自动复用该登录状态！'
-      );
-    }
-    console.log(`[${SCRIPT_NAME}] 成功捕获并更新凭证: ${captureType}`);
+    console.log(`[${SCRIPT_NAME}] 成功捕获并更新凭证: ${captureType}（不单独弹窗，合并进签到通知）`);
   }
 
   // 捕获即触发：Cookie 到手即在本次请求上下文内联执行签到（无定时、无延迟）
   if (shouldRunOnCapture()) {
-    handleSign(() => $done({}));
+    handleSign(() => $done({}), captureType);
     return;
   }
   $done({});
@@ -242,7 +232,7 @@ function handleCapture() {
  * 2. 签到执行模式：会话续期、提交签到、自动阶梯领奖
  * ----------------------------------------------------------------------------
  */
-async function handleSign(doneFn) {
+async function handleSign(doneFn, captureNote) {
   const finish = typeof doneFn === 'function' ? doneFn : (() => $done());
   console.log(`[${SCRIPT_NAME}] 开始执行自动签到任务...`);
 
@@ -505,7 +495,10 @@ async function handleSign(doneFn) {
 
     // 5. 组织通知输出
     let notifySub = `${userName} | ${signMsg}`;
-    let notifyBody = `📅 本月累计签到: ${accumulateTimes} 天`;
+    const sessionLine = captureNote
+      ? `🔑 会话: 本次运行自动捕获${captureNote}，以新鲜登录态完成`
+      : `🔑 会话: 复用沙盒持久化凭据`;
+    let notifyBody = `${sessionLine}\n📅 本月累计签到: ${accumulateTimes} 天`;
     if (awardResults.length > 0) {
       notifyBody += `\n🎁 获得奖品: ${awardResults.join('、')}`;
     } else {

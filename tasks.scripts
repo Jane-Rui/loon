@@ -6,9 +6,7 @@
 #!date=2026-09-11
 
 # 📱 通信与运营商（捕获触发：打开中国移动 APP 即自动签到，无定时任务）
-http-request ^https?:\/\/(client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=30, tag=中国移动原生凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdsso\/appTokenLogin script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动SSO凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
-http-request ^https?:\/\/wx\.10086\.cn\/qwhdhub\/api\/mark\/ script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, timeout=30, tag=中国移动签到会话捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
+http-request ^https?:\/\/((client|apm)\.app\.coc\.10086\.cn\/biz-orange\/[LD]N\/|wx\.10086\.cn\/(qwhdsso\/appTokenLogin|qwhdhub\/api\/mark\/)) script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/10086.js, requires-body=true, timeout=30, tag=中国移动凭据捕获, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 
 # 💬 虚拟号码与通信
 cron "30 10-14,18-22 * * *" script-path=https://raw.githubusercontent.com/Jane-Rui/loon/main/Plugin/pingme.js, timeout=180, tag=PingMe每日签到, img-url=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png

@@ -2,6 +2,17 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-09-13
+
+### Changed
+- **中国移动 (`Plugin/10086.js` v1.5.0)**：
+  - **通知合并**：凭据捕获不再单独推送「授权状态获取成功」弹窗（含重复捕获场景），捕获来源以 `🔑 会话:` 行并入签到结果通知，单次运行仅一条通知；
+  - **规则精简**：3 条捕获规则合并为 1 条联合正则（native biz-orange / SSO appTokenLogin / 签到 H5），保留 `requires-body=true` 以维持 SSO Token 体捕获；`Plugin/10086.plugin` 与 `tasks.scripts` 同步；
+  - 移除本地测试副本 `Scripts/10086_sign.js`，全仓库仅保留单一脚本文件。
+- **AkileCloud (`Plugin/akile.js` v0.13)**：
+  - 修复「Token 校验误判通过后又报 token 无效」：网关对失效 Token 返回 `status_code=0 + data=null + status_msg=token无效`，新增 `isAuthOk()/isAuthFailure()` 同时校验状态码、data 与错误文案；
+  - 登录态循环策略：Token 优先 → 失效自动账密备用登录并持久化新 Token → 后续接口（资产看板/签到）经 `callWithAuthRetry()` 报失效时自动重登一次并重试。
+
 ## [1.4.0] - 2026-09-13
 
 ### Changed

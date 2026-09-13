@@ -2,7 +2,7 @@
  * @fileoverview AkileCloud (akile.ai) 自动登录与每日签到脚本
  * @author Jane-Rui
  * @date 2026-09-11
- * @version 0.12
+ * @version 0.13
  * @description 支持 AkileCloud 长期 Token 优先复用、自动账密静默登录续期、智能双路由容灾、金额分转元精准换算、前置防风控审查与每日自动打卡。
  * 
  * ==============================================================================
@@ -237,6 +237,35 @@ async function loginWithCredentials(email, password) {
 }
 
 /**
+ * 判定接口响应是否为「登录态有效」
+ * 注意：Akile 网关对失效 Token 可能返回 status_code=0 但 data=null 且
+ * status_msg 含 token 无效描述，因此必须同时校验 status_code、data 与错误文案。
+ * @function isAuthOk
+ * @module Auth
+ * @param {Object} res - 接口响应 JSON
+ * @returns {boolean}
+ */
+function isAuthOk(res) {
+  if (!res || res.status_code !== 0 || !res.data) return false;
+  const msg = String(res.status_msg || '');
+  if (/token\s*(无效|失效|invalid|expired)|invalid\s*token|unauthor|not\s*login/i.test(msg)) return false;
+  return true;
+}
+
+/**
+ * 判定是否为「登录态失效」类错误（可触发账密备用登录重试）
+ * @function isAuthFailure
+ * @module Auth
+ * @param {Object} res - 接口响应 JSON
+ * @returns {boolean}
+ */
+function isAuthFailure(res) {
+  if (!res) return true;
+  if (res.status_code !== 0 || !res.data) return true;
+  return !isAuthOk(res);
+}
+
+/**
  * 获取当前用户信息（只读检测）
  * @function fetchUserInfo
  * @module User
@@ -346,7 +375,16 @@ async function handleTask() {
   }
 
   try {
-    // 3. 校验已有 Token 是否可用
+    // 3. 登录态循环策略：Token 优先 → 失效则账密备用登录并持久化 → 下次仍 Token 优先，循环类推
+    const relogin = async (reason) => {
+      if (!email || !password) {
+        throw new Error(`登录态失效（${reason}）且未配置账号密码，无法自动重登`);
+      }
+      console.log(`[${SCRIPT_NAME}] ${reason}，启用账密备用登录置换 Token...`);
+      token = await loginWithCredentials(email, password); // 内部已持久化至 KEY_TOKEN
+      return token;
+    };
+
     let userRes = null;
     if (token) {
       console.log(`[${SCRIPT_NAME}] 读取到本地持久化 Token，正在验证会话有效性...`);
@@ -357,21 +395,39 @@ async function handleTask() {
       }
     }
 
-    // 若 Token 缺失或已过期（返回非 0 状态），执行静默自动登录
-    const isTokenExpired = !userRes || userRes.status_code !== 0;
-    if (isTokenExpired) {
-      if (email && password) {
-        console.log(`[${SCRIPT_NAME}] 本地 Token 不存在或已过期，执行自动登录置换长期 Token...`);
-        token = await loginWithCredentials(email, password);
-        userRes = await fetchUserInfo(token);
-      } else {
-        throw new Error('本地 Token 已失效且未配置账号密码，无法自动重新登录');
-      }
-    } else {
+    if (isAuthOk(userRes)) {
       console.log(`[${SCRIPT_NAME}] 本地长期 Token 验证通过，直接复用当前会话（无需重复登录）！`);
+    } else {
+      console.log(`[${SCRIPT_NAME}] 本地 Token 缺失或已失效（${(userRes && userRes.status_msg) || '无有效响应'}），转入账密备用登录...`);
+      await relogin('Token 失效');
+      userRes = await fetchUserInfo(token);
+      if (!isAuthOk(userRes)) {
+        throw new Error(`账密登录后仍无法获取有效用户信息: ${(userRes && userRes.status_msg) || '响应异常'}`);
+      }
+      console.log(`[${SCRIPT_NAME}] 账密登录成功，新 Token 已持久化，下次运行优先复用`);
     }
 
-    if (!userRes || userRes.status_code !== 0 || !userRes.data) {
+    // 登录态自愈统一入口：后续任一接口报登录态失效时，自动账密重登一次并重试
+    const callWithAuthRetry = async (apiFn, label) => {
+      let res = null;
+      try {
+        res = await apiFn(token);
+      } catch (e) {
+        console.log(`[${SCRIPT_NAME}] ${label} 网络异常: ${e.message}`);
+        return null;
+      }
+      if (isAuthOk(res)) return res;
+      console.log(`[${SCRIPT_NAME}] ${label} 返回登录态失效（${(res && res.status_msg) || '响应异常'}），自动账密重登并重试...`);
+      await relogin(`${label} 失效`);
+      try {
+        return await apiFn(token);
+      } catch (e) {
+        console.log(`[${SCRIPT_NAME}] ${label} 重试网络异常: ${e.message}`);
+        return null;
+      }
+    };
+
+    if (!userRes || !userRes.data) {
       throw new Error(`获取用户信息失败: ${(userRes && userRes.status_msg) || '响应异常'}`);
     }
 
@@ -389,7 +445,7 @@ async function handleTask() {
 
       let akCoinText = '';
       try {
-        const idxRes = await fetchUserIndex(token);
+        const idxRes = await callWithAuthRetry(fetchUserIndex, '资产看板接口');
         if (idxRes && idxRes.status_code === 0 && idxRes.data) {
           const moneyVal = idxRes.data.money !== undefined ? idxRes.data.money : userData.money;
           akCoinText = `\n🪙 当前金币: ${idxRes.data.ak_coin} | 余额: ￥${formatMoney(moneyVal)}`;
@@ -412,7 +468,7 @@ async function handleTask() {
 
     // 5. 今日尚未签到，发起打卡请求
     console.log(`[${SCRIPT_NAME}] 今日尚未签到，正在提交签到打卡请求...`);
-    const checkinRes = await executeCheckin(token);
+    const checkinRes = await callWithAuthRetry(executeCheckin, '签到接口');
 
     if (checkinRes && checkinRes.status_code === 0) {
       const reward = checkinRes.data !== undefined ? `+${checkinRes.data} 金币` : '成功';
@@ -420,7 +476,7 @@ async function handleTask() {
 
       let balanceInfo = '';
       try {
-        const idxRes = await fetchUserIndex(token);
+        const idxRes = await callWithAuthRetry(fetchUserIndex, '资产看板接口');
         if (idxRes && idxRes.status_code === 0 && idxRes.data) {
           const moneyVal = idxRes.data.money !== undefined ? idxRes.data.money : userData.money;
           balanceInfo = `\n🪙 累计金币: ${idxRes.data.ak_coin} | 账户余额: ￥${formatMoney(moneyVal)}`;
