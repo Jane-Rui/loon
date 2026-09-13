@@ -1,7 +1,7 @@
 /**
  * @fileoverview PingMe 虚拟号码与短信平台自动签到及视频激励奖励
  * @author 怎么肥事 (Jane-Rui 整理重构)
- * @version 1.0.0
+ * @version 1.1.0
  * @date 2026-09-11
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
@@ -16,8 +16,10 @@
  *    - 自动查询当前 Coins 余额
  *    - 自动提交每日打卡签到（checkIn）
  * 3. 视频激励与智能验证码识别：
- *    - 自动多轮拉取视频奖励（videoBonus）
- *    - 支持随机延迟防风控拦截
+ *    - 广告签到打散执行：原始逻辑为每日 2 轮 × 每轮循环 5 次，现打散为
+ *      每日 10 次独立执行（每次 Cron 触发仅完成 1 次 videoBonus）；
+ *    - 当日进度持久化（pingme_video_progress），跨次累计、达上限自动跳过；
+ *    - 执行前随机延迟防风控拦截；
  *    - 当检测到验证码时，内置多 OCR 识别引擎自动重试自愈
  * 
  * ==============================================================================
@@ -43,6 +45,9 @@ const ckKey = "pingme_capture_v3";
 const SECRET = "0fOiukQq7jXZV2GRi9LGlO";
 const MAX_VIDEO = 5;
 const VIDEO_DELAY = 8000;
+const KEY_VIDEO_PROGRESS = "pingme_video_progress";
+// 原始逻辑为每日 2 轮 × 每轮循环 5 次；打散后每日独立执行总数 = 2 × 5
+const DAILY_VIDEO_TOTAL = MAX_VIDEO * 2;
 
 // ===== 新增统一变量区（全部放顶部）=====
 const OCR_API_LIST = [
@@ -339,7 +344,10 @@ if (typeof $request !== "undefined" && $request) {
     notifyDone("⚠️ 参数抓取失败", "写入存储失败");
   }
 
-  console.log(`【${scriptName}】capture:\n${JSON.stringify(capture, null, 2)}`);
+  // 脱敏日志：仅输出键名，避免会话参数进入日志（防止日志外传导致凭据泄露）
+  console.log(
+    `【${scriptName}】capture keys: ${Object.keys(capture || {}).join(",")} | params: ${Object.keys((capture && capture.paramsRaw) || {}).join(",")}`,
+  );
   done({});
 } else {
   const raw = $persistentStore.read(ckKey);
@@ -384,81 +392,96 @@ if (typeof $request !== "undefined" && $request) {
       });
     }
 
-    function doVideoLoop(count) {
-      let i = 0;
+    function todayStr() {
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const cst = new Date(utc + 3600000 * 8);
+      return `${cst.getFullYear()}${String(cst.getMonth() + 1).padStart(2, "0")}${String(cst.getDate()).padStart(2, "0")}`;
+    }
 
-      function next() {
-        if (i >= count) return Promise.resolve();
+    function readVideoProgress() {
+      let p = {};
+      try {
+        p = JSON.parse($persistentStore.read(KEY_VIDEO_PROGRESS) || "{}");
+      } catch (e) {
+        p = {};
+      }
+      if (!p || p.date !== todayStr()) {
+        p = { date: todayStr(), count: 0 };
+      }
+      return p;
+    }
 
-        return new Promise((resolve) => {
-          setTimeout(
-            () => {
-              i++;
+    /**
+     * 单次广告签到（打散模式）：每次运行仅执行 1 次 videoBonus，
+     * 每日配额 MAX_VIDEO 次由 Cron 的多个时间点分摊，进度持久化累计。
+     */
+    function doSingleVideo() {
+      const progress = readVideoProgress();
 
-              fetchApi("videoBonus")
-                .then(async (res) => {
-                  totalVideos++;
-                  let msg = "";
-
-                  try {
-                    let d = JSON.parse(res.body);
-
-                    // ===== 新增：OCR处理 =====
-                    if (d.retmsg && d.retmsg.indexOf("验证码") !== -1) {
-                      console.log("检测到验证码");
-
-                      const code = await handleOCR(capture, headers);
-
-                      if (code) {
-                        try {
-                          const retryRes = await fetchApi(
-                            "videoBonus",
-                            capture,
-                            headers,
-                            { code },
-                          );
-                          d = JSON.parse(retryRes.body);
-                          console.log("OCR重试成功");
-                        } catch (e) {
-                          console.log("OCR重试失败");
-                        }
-                      }
-                    }
-
-                    if (d.retcode === 0) {
-                      const bonus = Number(d.result?.bonus || 0);
-
-                      totalCoins += bonus;
-                      totalVideos++;
-
-                      msg = `🎬 视频${i}/${count}：+${bonus} Coins`;
-                    } else {
-                      msg = `⏸ 视频${i}/${count}：${d.retmsg || "失败"}`;
-                    }
-                  } catch (e) {
-                    msg = `❌ 视频${i}/${count}：解析失败`;
-                  }
-
-                  msgs.push(msg);
-                  notifyDone("PingMe进度", msg);
-
-                  resolve(next());
-                })
-                .catch((err) => {
-                  const msg = `❌ 视频${i}/${count}：${err.error || err.message || "请求失败"}`;
-                  msgs.push(msg);
-                  notifyDone("PingMe进度", msg);
-                  resolve();
-                });
-            },
-            Math.floor(
-              Math.random() * (RANDOM_DELAY_MAX - RANDOM_DELAY_MIN + 1),
-            ) + RANDOM_DELAY_MIN,
-          );
-        });
+      if (progress.count >= DAILY_VIDEO_TOTAL) {
+        msgs.push(`🎬 广告签到：今日 ${DAILY_VIDEO_TOTAL} 次配额已完成，跳过本轮`);
+        return Promise.resolve();
       }
 
-      return next();
+      const delay =
+        Math.floor(Math.random() * (RANDOM_DELAY_MAX - RANDOM_DELAY_MIN + 1)) +
+        RANDOM_DELAY_MIN;
+
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          fetchApi("videoBonus")
+            .then(async (res) => {
+              let msg = "";
+              try {
+                let d = JSON.parse(res.body);
+
+                // ===== OCR 验证码自愈 =====
+                if (d.retmsg && d.retmsg.indexOf("验证码") !== -1) {
+                  console.log("检测到验证码");
+                  const code = await handleOCR(capture, headers);
+                  if (code) {
+                    try {
+                      const retryRes = await fetchApi(
+                        "videoBonus",
+                        capture,
+                        headers,
+                        { code },
+                      );
+                      d = JSON.parse(retryRes.body);
+                      console.log("OCR重试成功");
+                    } catch (e) {
+                      console.log("OCR重试失败");
+                    }
+                  }
+                }
+
+                if (d.retcode === 0) {
+                  const bonus = Number(d.result?.bonus || 0);
+                  totalCoins += bonus;
+                  totalVideos++;
+                  progress.count += 1;
+                  msg = `🎬 广告签到 ${progress.count}/${DAILY_VIDEO_TOTAL}：+${bonus} Coins`;
+                } else {
+                  msg = `⏸ 广告签到 ${progress.count + 1}/${DAILY_VIDEO_TOTAL}：${d.retmsg || "失败"}`;
+                  // 服务端提示无剩余次数时直接记满，避免后续 Cron 空转
+                  if (/次数|已领|上限|完成|没有/.test(d.retmsg || "")) {
+                    progress.count = DAILY_VIDEO_TOTAL;
+                  }
+                }
+              } catch (e) {
+                msg = "❌ 广告签到：解析失败";
+              }
+              $persistentStore.write(JSON.stringify(progress), KEY_VIDEO_PROGRESS);
+              msgs.push(msg);
+              resolve();
+            })
+            .catch((err) => {
+              msgs.push(`❌ 广告签到：${err.error || err.message || "请求失败"}`);
+              resolve();
+            });
+        }, delay);
+      });
     }
 
     function handleOCR(capture, headers) {
@@ -513,7 +536,6 @@ if (typeof $request !== "undefined" && $request) {
         }
 
         msgs.push(msg);
-        notifyDone("PingMe进度", msg);
 
         return fetchApi("checkIn");
       })
@@ -533,9 +555,8 @@ if (typeof $request !== "undefined" && $request) {
         }
 
         msgs.push(msg);
-        notifyDone("PingMe进度", msg);
 
-        return doVideoLoop(MAX_VIDEO);
+        return doSingleVideo();
       })
 
       .then(() => {
@@ -550,7 +571,6 @@ if (typeof $request !== "undefined" && $request) {
           if (d.retcode === 0) {
             msg = `💰 最新余额：${d.result.balance} Coins`;
             msgs.push(msg);
-            notifyDone("PingMe进度", msg);
           }
         } catch (e) {}
 

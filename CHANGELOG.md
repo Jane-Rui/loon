@@ -2,6 +2,15 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-09-13
+
+### Changed
+- **PingMe (`Plugin/pingme.js` v1.1.0)**：广告签到由「每日 2 轮 × 单轮内循环 5 次」调整为「打散为每日 10 次（2×5）独立执行」：
+  - 每次 Cron 触发仅完成 1 次 `videoBonus` 广告签到，Cron 调整为 `10:30–14:30` 与 `18:30–22:30` 整点半各 5 次；
+  - 新增当日进度持久化键 `pingme_video_progress`（跨次累计、达上限自动跳过、服务端提示无次数时记满防空调度）；
+  - 每次运行合并为单条汇总通知，避免打散后通知刷屏；
+  - 同步更新 `Plugin/pingme.plugin` 与 `tasks.scripts` 的 Cron 与超时配置。
+
 ## [1.1.1] - 2026-09-13
 
 ### Added
