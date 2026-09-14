@@ -2,6 +2,16 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.4.1] - 2026-09-14
+
+### Fixed
+- **中国移动 (`Plugin/10086.js` v2.4.0, `Plugin/10086_task.js` v2.4.0 & `Plugin/10086.plugin`) 终极修复账号切换后复用旧会话与手机号串号缺陷**：
+  - **扩大 Loon 拦截规则与覆盖域**：拦截正则由狭隘的 `(DA|UN|BN|BH)` 扩展至匹配全量 `biz-orange` 业务（覆盖客户端首页主流的 `DH`、`DN`、`SHG` 等）及 `ngpsie` 接口；MITM 同步引入 `clientaccess.10086.cn`，确保切换账号时客户端业务包不漏抓；
+  - **多源全息提取与过渡期手机号闪电认领**：UID 提取同时兼顾请求头 Cookie、URL Query 与解密信封 `env.t`；新增 `cmcc_pending_tel` 机制，在首秒接收到上报手机号（无 UID）时安全暂存，待新账号业务包到达时立即自动认领绑定当前 UID，彻底根治“切换账号后未能重新获取手机号”；
+  - **账号切换时物理抹除全局旧会话**：探测到 UID 切换时立即强制清空 `KEY_SESSION_COOKIE`，新账号如果本地无专属活动 Session，强制直接调用 `refreshSessionToken()` 换取专属新会话，彻底杜绝回退复用 30 分钟内有效的上一个账号 Session；
+  - **SSO 换票网关 `userCheckId` 十六进制规范化**：依照中国移动官方 SSO 网关协议，将当前账号的 11 位手机号转为 16 进制字符串作为 `userCheckId` 传入 `appTokenLogin`，确保 100% 精准换出当前手机号的活动中心登录态；
+  - **信封资产查询与通知透传当前 UID**：`cmccBizRequest` 显式透传当前 UID 手机号，通知标题由 `(assets && assets.tel) || getTelForUid(uid)` 强力锁定，双向往返切换（A ➔ B ➔ A）100% 隔离无串号。
+
 ## [2.4.0] - 2026-09-14
 
 ### Changed
