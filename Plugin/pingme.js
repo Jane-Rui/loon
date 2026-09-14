@@ -1,8 +1,8 @@
 /**
  * @fileoverview PingMe 虚拟号码与短信平台自动签到及视频激励奖励
  * @author 怎么肥事 (Jane-Rui 整理重构)
- * @version 1.1.0
- * @date 2026-09-11
+ * @version 1.2.0
+ * @date 2026-09-14
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
  * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/PingMe.png
@@ -14,7 +14,8 @@
  *    - 提取 URL 参数与请求头，安全持久化于本地存储（$persistentStore）
  * 2. 自动化签到与余额查询：
  *    - 自动查询当前 Coins 余额
- *    - 自动提交每日打卡签到（checkIn）
+ *    - 每日打卡签到（checkIn）仅在当日首次运行时触发，后续轮次自动跳过以防重复报错
+ *    - 自动持久化当日打卡状态（pingme_checkin_date）
  * 3. 视频激励与智能验证码识别：
  *    - 广告签到打散执行：原始逻辑为每日 2 轮 × 每轮循环 5 次，现打散为
  *      每日 10 次独立执行（每次 Cron 触发仅完成 1 次 videoBonus）；
@@ -46,6 +47,7 @@ const SECRET = "0fOiukQq7jXZV2GRi9LGlO";
 const MAX_VIDEO = 5;
 const VIDEO_DELAY = 8000;
 const KEY_VIDEO_PROGRESS = "pingme_video_progress";
+const KEY_CHECKIN_DATE = "pingme_checkin_date";
 // 原始逻辑为每日 2 轮 × 每轮循环 5 次；打散后每日独立执行总数 = 2 × 5
 const DAILY_VIDEO_TOTAL = MAX_VIDEO * 2;
 
@@ -412,6 +414,14 @@ if (typeof $request !== "undefined" && $request) {
       return p;
     }
 
+    function isCheckInDoneToday() {
+      return $persistentStore.read(KEY_CHECKIN_DATE) === todayStr();
+    }
+
+    function markCheckInDoneToday() {
+      $persistentStore.write(todayStr(), KEY_CHECKIN_DATE);
+    }
+
     /**
      * 单次广告签到（打散模式）：每次运行仅执行 1 次 videoBonus，
      * 每日配额 MAX_VIDEO 次由 Cron 的多个时间点分摊，进度持久化累计。
@@ -537,26 +547,37 @@ if (typeof $request !== "undefined" && $request) {
 
         msgs.push(msg);
 
-        return fetchApi("checkIn");
-      })
-
-      .then((res) => {
-        let msg = "";
-
-        try {
-          const d = JSON.parse(res.body);
-          if (d.retcode === 0) {
-            msg = `✅ 签到：${(d.result?.bonusHint || d.retmsg || "成功").replace(/\n/g, " ")}`;
-          } else {
-            msg = `⚠️ 签到：${d.retmsg || "失败"}`;
-          }
-        } catch (e) {
-          msg = "❌ 签到：解析失败";
+        // 仅在当日首次运行时执行打卡签到，后续轮次仅做看视频签到
+        if (!isCheckInDoneToday()) {
+          return fetchApi("checkIn")
+            .then((checkInRes) => {
+              let checkInMsg = "";
+              try {
+                const d = JSON.parse(checkInRes.body);
+                if (d.retcode === 0) {
+                  checkInMsg = `✅ 签到：${(d.result?.bonusHint || d.retmsg || "成功").replace(/\n/g, " ")}`;
+                  markCheckInDoneToday();
+                } else {
+                  checkInMsg = `⚠️ 签到：${d.retmsg || "失败"}`;
+                  // 若服务端提示今日已签到（如用户已手动在APP打卡），标记当日完成防后续空跑报错
+                  if (/(已签到|重复|已经|already)/i.test(d.retmsg || "")) {
+                    markCheckInDoneToday();
+                  }
+                }
+              } catch (e) {
+                checkInMsg = "❌ 签到：解析失败";
+              }
+              msgs.push(checkInMsg);
+              return doSingleVideo();
+            })
+            .catch((err) => {
+              msgs.push(`❌ 签到：${err?.error || err?.message || "请求失败"}`);
+              return doSingleVideo();
+            });
+        } else {
+          console.log(`【${scriptName}】今日已完成每日打卡签到，本次仅执行看视频签到`);
+          return doSingleVideo();
         }
-
-        msgs.push(msg);
-
-        return doSingleVideo();
       })
 
       .then(() => {

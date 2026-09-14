@@ -2,6 +2,14 @@
 
 本项目所有重要变更均记录于此文件。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [2.4.0] - 2026-09-14
+
+### Changed
+- **PingMe (`Plugin/pingme.js` v1.2.0 & `Plugin/pingme.plugin`) 优化打散签到调度，限制每日打卡仅执行一次**：
+  - **当日打卡状态持久化**：引入 `KEY_CHECKIN_DATE` (`pingme_checkin_date`)，记录当日最后成功打卡或已签到的 CST 格式日期；
+  - **首末次智能区分调度**：在全天 10 次的 Cron 打散任务中，仅在当日首次运行时同时执行「每日打卡签到（checkIn）+ 看视频签到（videoBonus）」；后续轮次自动识别今日已完成打卡，静默跳过 `checkIn` 接口，仅执行「看视频签到」；
+  - **服务端已签容错自愈**：若用户已手动在 APP 内签到，接口返回已签到提示时自动更新当日打卡状态，杜绝后续轮次反复产生报错通知。
+
 ## [2.3.0] - 2026-09-13
 
 ### Fixed
