@@ -4,7 +4,7 @@
 #!icon=https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
 #!tag=签到,中国移动
 #!system=iOS
-#!date=2026-09-14
+#!date=2026-09-16
 
 [Script]
 # 1. 自动监听与签到：过滤未完成登录的底层握手接口，只在已授权业务包上解密提取凭据与手机号，立即触发签到

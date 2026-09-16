@@ -1,8 +1,8 @@
 /**
  * @fileoverview 中国移动客户端多重凭证自动劫持与活动中心每日自动签到
  * @author Jane-Rui
- * @version 2.4.0
- * @date 2026-09-14
+ * @version 2.4.1
+ * @date 2026-09-16
  * @license MIT
  * @icon https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
  * icon: https://raw.githubusercontent.com/Jane-Rui/loon/main/Icon/App/10086.png
@@ -681,7 +681,7 @@ async function handleSign(doneFn, activeUid) {
     const assets = await queryAccountAssets(tokenInfo, uid);
 
     // 6. 构造高直观度通知：去除所有技术噪点，三联排资产核心数据直接置顶直显（无需手动展开）
-    const phone = (assets && assets.tel) || (userName.match(/^1\d{10}$/) ? userName : '');
+    const phone = (assets && assets.tel) || getTelForUid(uid) || (userName.match(/^1\d{10}$/) ? userName : '');
     const phoneMask = phone
       ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
       : (userName || '中国移动');
@@ -689,9 +689,13 @@ async function handleSign(doneFn, activeUid) {
 
     // 文案精简：去除“无需重复签到”等冗余字眼
     const cleanSignMsg = signMsg.replace(/，无需重复签到|！/g, '');
+    const isSuccess = signMsg === '签到成功！';
+    const statusIcon = isSuccess ? '🎉' : (cleanSignMsg.includes('未成功') || cleanSignMsg.includes('失败') ? '⚠️' : '📅');
+    const statusText = `${statusIcon} ${cleanSignMsg}（本月累计 ${accumulateTimes} 天）`;
 
     // 副标题：三联排核心资产（iOS 横幅二级标题，粗体且默认单行直显，无需长按展开）
     let notifySub = '';
+    const bodyLines = [];
     const subParts = [];
     if (assets) {
       if (assets.fee) subParts.push(`💰 ￥${assets.fee}`);
@@ -700,16 +704,11 @@ async function handleSign(doneFn, activeUid) {
     }
     if (subParts.length > 0) {
       notifySub = subParts.join(' ｜ ');
+      bodyLines.push(statusText);
     } else {
-      notifySub = `📅 ${cleanSignMsg}（本月累计 ${accumulateTimes} 天）`;
+      notifySub = statusText;
     }
 
-    // 正文：首行核心数据再次强化，次行签到累计状态，末行中奖（无奖品时绝不输出废话）
-    const bodyLines = [];
-    if (subParts.length > 0) {
-      bodyLines.push(`💰 话费: ￥${assets.fee || '--'}   📶 流量: ${assets.flow || '--'}   📞 通话: ${assets.voice || '--'}`);
-    }
-    bodyLines.push(`📅 状态: ${cleanSignMsg}（本月累计 ${accumulateTimes} 天）`);
     if (awardResults.length > 0) {
       bodyLines.push(`🎁 领奖: ${awardResults.join('、')}`);
     }
